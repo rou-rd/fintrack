@@ -395,15 +395,15 @@ input[type=file]{display:none}
   function ui(id) { return document.getElementById(id); }
 
   function setLoggedIn(user) {
-    // IDs matching the sidebar HTML
-    const login     = ui('fb-login-btn');
-    const userBlock = ui('fb-user-block');
-    const photo     = ui('fb-user-photo');
-    const initials  = ui('fb-initials');
-    const name      = ui('fb-user-name');
-    const sync      = ui('fb-menu-sync');
+    const login    = ui('fb-login-btn');
+    const block    = ui('fb-user-block');
+    const photo    = ui('fb-user-photo');
+    const initials = ui('fb-initials');
+    const name     = ui('fb-user-name');
+    const menuName = ui('fb-menu-name');
+    const sync     = ui('fb-menu-sync');
 
-    // Photo or initials
+    const initial = (user.displayName || user.email || '?').charAt(0).toUpperCase();
     if (photo) {
       if (user.photoURL) {
         photo.src = user.photoURL;
@@ -411,26 +411,25 @@ input[type=file]{display:none}
         if (initials) initials.style.display = 'none';
       } else {
         photo.style.display = 'none';
-        if (initials) {
-          initials.textContent = (user.displayName || user.email || '?').charAt(0).toUpperCase();
-          initials.style.display = 'flex';
-        }
+        if (initials) { initials.textContent = initial; initials.style.display = 'flex'; }
       }
     }
-    if (name) name.textContent = user.displayName || user.email;
-    if (sync) sync.textContent = '☁️ Connecté';
-
-    // Toggle visibility
-    if (login)     login.style.display     = 'none';
-    if (userBlock) userBlock.style.display = 'block';
+    const displayName = user.displayName || user.email;
+    if (name)     name.textContent     = displayName;
+    if (menuName) menuName.textContent = displayName;
+    if (sync)     sync.textContent     = '☁️ Connecté';
+    if (login)    login.style.display  = 'none';
+    if (block)    block.style.display  = 'flex';
   }
 
   function setLoggedOut() {
-    const login     = ui('fb-login-btn');
-    const userBlock = ui('fb-user-block');
+    const login = ui('fb-login-btn');
+    const block = ui('fb-user-block');
+    const dd    = ui('fb-dropdown');
 
-    if (login)     login.style.display     = 'flex';
-    if (userBlock) userBlock.style.display = 'none';
+    if (login) login.style.display = 'flex';
+    if (block) block.style.display = 'none';
+    if (dd)    dd.classList.remove('show');
   }
 
   function setSyncStatus(msg, timeout = 0) {
@@ -590,7 +589,8 @@ input[type=file]{display:none}
   };
 
   window._fbLogout = async function() {
-    ui('fb-menu')?.classList.remove('open');
+    const dd = document.getElementById('fb-dropdown');
+    if (dd) dd.classList.remove('show');
     if (confirm('Se déconnecter de FinTrack ?')) {
       try {
         await signOut(auth);
@@ -651,75 +651,6 @@ input[type=file]{display:none}
     <button class="nav-btn" data-page="saving-planner"><span class="nav-icon">🧮</span><span class="nav-label">Planificateur épargne</span></button>
   </div>
   <div class="nav-footer">
-
-    <!-- ── PROFIL UTILISATEUR ── -->
-    <!-- Non connecté -->
-    <button id="fb-login-btn" onclick="fbLogin()" style="
-      display:flex; align-items:center; gap:10px;
-      width:100%; padding:10px 14px; border-radius:10px;
-      background:transparent; border:1px solid var(--border2,#2a3654);
-      cursor:pointer; font-size:13px; font-weight:600;
-      color:var(--muted2,#7080a0); font-family:inherit;
-      margin-bottom:8px; transition:all .15s;
-    " onmouseover="this.style.background='var(--s2)'"
-       onmouseout="this.style.background='transparent'">
-      <svg width="16" height="16" viewBox="0 0 18 18" style="flex-shrink:0">
-        <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.84-1.6 2.4v2h2.6c1.52-1.4 2.4-3.47 2.4-5.92 0-.57-.05-1.12-.17-1.64z"/>
-        <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2c-.71.48-1.63.76-2.7.76-2.07 0-3.83-1.4-4.46-3.27H1.86v2.07C3.18 15.06 5.89 17 8.98 17z"/>
-        <path fill="#FBBC05" d="M4.52 10.55c-.16-.48-.25-.99-.25-1.55s.09-1.07.25-1.55V5.38H1.86A8.01 8.01 0 0 0 1 9c0 1.29.31 2.51.86 3.62l2.66-2.07z"/>
-        <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.22.4 3.04 1.2l2.27-2.27C12.95 1.89 11.14 1 8.98 1 5.89 1 3.18 2.94 1.86 5.38l2.66 2.07c.63-1.87 2.39-3.27 4.46-3.27z"/>
-      </svg>
-      Connexion Google
-    </button>
-
-    <!-- Connecté -->
-    <div id="fb-user-block" style="display:none; margin-bottom:8px;">
-      <div style="
-        display:flex; align-items:center; gap:10px;
-        padding:10px 14px; border-radius:10px;
-        background:var(--accent-d,rgba(61,114,216,0.12));
-        border:1px solid var(--accent-d2,rgba(61,114,216,0.25));
-      ">
-        <!-- Avatar -->
-        <div id="fb-avatar-wrap" style="
-          width:32px; height:32px; border-radius:50%; flex-shrink:0;
-          background:linear-gradient(135deg,#1a3a8f,#3d72d8);
-          display:flex; align-items:center; justify-content:center;
-          border:2px solid var(--accent,#3d72d8); overflow:hidden;
-        ">
-          <img id="fb-user-photo" src="" alt=""
-            style="width:100%;height:100%;object-fit:cover;display:none"
-            onload="this.style.display='block';document.getElementById('fb-initials').style.display='none'"
-            onerror="this.style.display='none';document.getElementById('fb-initials').style.display='flex'"/>
-          <span id="fb-initials" style="
-            font-size:12px; font-weight:700; color:white;
-            display:flex; align-items:center; justify-content:center;
-          ">?</span>
-        </div>
-        <!-- Info -->
-        <div style="flex:1; min-width:0;">
-          <div id="fb-user-name" style="
-            font-size:12px; font-weight:600;
-            color:var(--text,#e4eaf6);
-            overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-          ">—</div>
-          <div id="fb-menu-sync" style="font-size:10px; color:var(--muted2,#7080a0);">
-            ☁️ Connecté
-          </div>
-        </div>
-        <!-- Déconnexion -->
-        <button onclick="fbLogout()" title="Se déconnecter" style="
-          background:transparent; border:none; cursor:pointer;
-          padding:4px; border-radius:6px; color:var(--red,#e24b4a);
-          font-size:11px; font-weight:600; white-space:nowrap;
-          transition:background .15s; flex-shrink:0;
-        " onmouseover="this.style.background='rgba(226,75,74,0.1)'"
-           onmouseout="this.style.background='transparent'">
-          ⬡ Déco
-        </button>
-      </div>
-    </div>
-
     <button class="btn-save-nav" id="btn-save-local"><span class="nav-icon">💾</span><span class="nav-label">Enregistrer</span></button>
     <div id="save-status"></div>
   </div>
@@ -734,12 +665,106 @@ input[type=file]{display:none}
         <div class="topbar-desc" id="topbar-desc">Vue d'ensemble de vos finances</div>
       </div>
     </div>
-    <div class="topbar-right">
+    <div class="topbar-right" style="display:flex;align-items:center;gap:10px">
       <button id="btn-theme-toggle" title="Thème clair / sombre"
         style="border:1px solid var(--border2);background:var(--s2);border-radius:var(--r);padding:6px 10px;cursor:pointer;font-size:15px;color:var(--muted2);transition:all .15s">
         🌙
       </button>
       <span id="csv-link-status" style="font-size:11.5px;color:var(--muted2)"></span>
+
+      <!-- ── AUTH ZONE ── -->
+
+      <!-- Non connecté: bouton Google pill -->
+      <button id="fb-login-btn" onclick="fbLogin()" style="
+        display:flex; align-items:center; gap:7px;
+        padding:6px 14px 6px 10px;
+        background:#fff; color:#3c3c3c;
+        border:1px solid #dadce0; border-radius:99px;
+        cursor:pointer; font-size:12px; font-weight:600;
+        font-family:inherit; white-space:nowrap;
+        box-shadow:0 1px 4px rgba(0,0,0,.2);
+        transition:box-shadow .15s;
+      " onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.3)'"
+         onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.2)'">
+        <svg width="16" height="16" viewBox="0 0 18 18">
+          <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.84-1.6 2.4v2h2.6c1.52-1.4 2.4-3.47 2.4-5.92 0-.57-.05-1.12-.17-1.64z"/>
+          <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2c-.71.48-1.63.76-2.7.76-2.07 0-3.83-1.4-4.46-3.27H1.86v2.07C3.18 15.06 5.89 17 8.98 17z"/>
+          <path fill="#FBBC05" d="M4.52 10.55c-.16-.48-.25-.99-.25-1.55s.09-1.07.25-1.55V5.38H1.86A8.01 8.01 0 0 0 1 9c0 1.29.31 2.51.86 3.62l2.66-2.07z"/>
+          <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.22.4 3.04 1.2l2.27-2.27C12.95 1.89 11.14 1 8.98 1 5.89 1 3.18 2.94 1.86 5.38l2.66 2.07c.63-1.87 2.39-3.27 4.46-3.27z"/>
+        </svg>
+        Se connecter
+      </button>
+
+      <!-- Connecté: avatar + nom + dropdown -->
+      <div id="fb-user-block" style="display:none; position:relative;">
+        <button onclick="document.getElementById('fb-dropdown').classList.toggle('show')" style="
+          display:flex; align-items:center; gap:8px;
+          padding:4px 10px 4px 4px;
+          background:var(--s1); border:1px solid var(--border2);
+          border-radius:99px; cursor:pointer;
+          box-shadow:0 1px 4px rgba(0,0,0,.2);
+          transition:box-shadow .15s;
+        " onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.35)'"
+           onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.2)'">
+          <!-- Avatar cercle -->
+          <div id="fb-avatar-wrap" style="
+            width:28px; height:28px; border-radius:50%;
+            background:linear-gradient(135deg,#1a3a8f,#3d72d8);
+            border:2px solid #3d72d8; overflow:hidden; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+          ">
+            <img id="fb-user-photo" src="" alt=""
+              style="width:100%;height:100%;object-fit:cover;display:none"/>
+            <span id="fb-initials" style="
+              font-size:11px;font-weight:700;color:white;
+            ">?</span>
+          </div>
+          <!-- Nom -->
+          <span id="fb-user-name" style="
+            font-size:12px; font-weight:600; color:var(--text);
+            max-width:110px; overflow:hidden;
+            text-overflow:ellipsis; white-space:nowrap;
+          "></span>
+          <!-- Chevron -->
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="flex-shrink:0;opacity:.5">
+            <path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <!-- Dropdown -->
+        <div id="fb-dropdown" style="
+          display:none; position:absolute; top:calc(100% + 8px); right:0;
+          background:var(--s1); border:1px solid var(--border2);
+          border-radius:12px; min-width:190px;
+          box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:9999;
+          overflow:hidden;
+        ">
+          <!-- Header user info -->
+          <div style="padding:12px 14px; border-bottom:1px solid var(--border);">
+            <div id="fb-menu-name" style="font-size:13px;font-weight:600;color:var(--text)"></div>
+            <div id="fb-menu-sync" style="font-size:11px;color:var(--muted2);margin-top:2px">☁️ Connecté</div>
+          </div>
+          <!-- Déconnecter -->
+          <button onclick="fbLogout()" style="
+            display:flex; align-items:center; gap:10px;
+            width:100%; padding:11px 14px;
+            background:transparent; border:none;
+            cursor:pointer; font-size:13px; font-weight:500;
+            color:var(--red,#e24b4a); font-family:inherit;
+            transition:background .15s;
+          " onmouseover="this.style.background='rgba(226,75,74,.08)'"
+             onmouseout="this.style.background='transparent'">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+
     </div>
   </header>
 
@@ -1361,6 +1386,9 @@ input[type=file]{display:none}
 
 
 
+  <style>
+    #fb-dropdown.show { display:block !important; }
+  </style>
   <!-- ═══ SAFE GLOBAL WRAPPERS (accessible depuis onclick HTML) ═══ -->
   <script>
     // These wrappers delegate to Firebase functions once loaded
@@ -5560,6 +5588,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+  <style>
+    #fb-dropdown.show { display:block !important; }
+  </style>
   <!-- ═══ SAFE GLOBAL WRAPPERS (accessible depuis onclick HTML) ═══ -->
   <script>
     // These wrappers delegate to Firebase functions once loaded
