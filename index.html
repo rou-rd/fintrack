@@ -1757,7 +1757,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (statusEl) statusEl.textContent = "✓ Navigateur (erreur CSV)";
       }
     } else {
-      if (statusEl) statusEl.textContent = window._fbUser ? "✓ Local + ☁️" : "✓ Enregistré";
+      if (statusEl) statusEl.textContent = window._fbUser ? "✓ Local + ☁️ Firebase" : "✓ Enregistré localement";
     }
     playSaveBeep();
     saveHintTimer = setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 2800);
@@ -3215,7 +3215,24 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------- init ---------- */
   // nav buttons bound by wrapper above
 
-  byId("btn-save-local").addEventListener("click", () => saveState());
+  byId("btn-save-local").addEventListener("click", async () => {
+    await saveState();
+    // Show Firebase sync feedback on the button itself
+    const btn = byId("btn-save-local");
+    const label = btn.querySelector(".nav-label");
+    const origText = label ? label.textContent : "";
+    if (window._fbUser) {
+      if (label) label.textContent = "☁️ Sync...";
+      btn.style.background = "var(--green,#1d9e75)";
+      setTimeout(() => {
+        if (label) label.textContent = "✓ Sauvegardé";
+        setTimeout(() => {
+          if (label) label.textContent = origText;
+          btn.style.background = "";
+        }, 1500);
+      }, 800);
+    }
+  });
 
   // Reset filters
   byId("btn-reset-filters").addEventListener("click", () => {
