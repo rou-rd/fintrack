@@ -508,7 +508,9 @@ input[type=file]{display:none}
 
   // ── LOAD FROM FIRESTORE ──────────────────────────────────────
   async function loadData(user) {
-    // Show subtle loading indicator
+    // Pause snapshot during load to avoid race condition
+    if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+
     const syncEl = document.getElementById('fb-menu-sync');
     if (syncEl) syncEl.textContent = '⏳ Chargement...';
     try {
@@ -527,9 +529,23 @@ input[type=file]{display:none}
             window.state.comptes?.length, "comptes"
           );
 
+          // Double-render to ensure DOM is ready
           if (typeof renderAll === 'function') renderAll();
           if (typeof renderWishlist === 'function') { try { renderWishlist(); } catch(e){} }
           try { if (typeof renderFactures === 'function') renderFactures(); } catch(e){}
+
+          // Re-render after delay to ensure all DOM is ready
+          setTimeout(() => {
+            if (typeof renderAll === 'function') renderAll();
+            if (typeof renderDepensesTable === 'function') renderDepensesTable();
+            if (typeof renderDashboard === 'function') renderDashboard();
+            console.log('[Firebase] Re-render done:', window.state.depenses?.length, 'dépenses');
+          }, 300);
+
+          // One more render for safety
+          setTimeout(() => {
+            if (typeof renderAll === 'function') renderAll();
+          }, 1000);
 
           // Force re-render of current page
           const activePage = document.querySelector('.page.active') ||
@@ -610,14 +626,21 @@ input[type=file]{display:none}
 
         // Only update from remote if it's newer than our last save
         // AND we're not currently in the middle of saving
-        if (remoteTs > _lastSave + 500 && !_saving) {
+        // Only apply remote if newer AND not currently saving
+        if (remoteTs > _lastSave + 2000 && !_saving) {
           const remote = snap.data().state;
           if (remote && remote.version === 2 &&
-              Array.isArray(remote.depenses) && remote.depenses.length > 0) {
+              Array.isArray(remote.depenses)) {
+            const localCount  = window.state.depenses?.length || 0;
+            const remoteCount = remote.depenses.length;
+            console.log(`[Snapshot] Remote: ${remoteCount} dep, Local: ${localCount} dep, ts diff: ${remoteTs - _lastSave}ms`);
+
+            Object.keys(window.state).forEach(k => delete window.state[k]);
             Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
             _lastSave = remoteTs;
+
             if (typeof renderAll === 'function') renderAll();
-            if (typeof renderWishlist === 'function') renderWishlist();
+            if (typeof renderWishlist === 'function') { try { renderWishlist(); } catch(e){} }
             setSyncStatus('🔄 Mis à jour', 2000);
           }
         }
@@ -2255,8 +2278,23 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderDashboard() {
     renderAlerts("alerts-dashboard");
     const now = new Date();
-    const mk = currentMonthKey();
-    const prevMk = (() => { const d = new Date(now.getFullYear(), now.getMonth()-1, 1); return d.toISOString().slice(0,7); })();
+
+    // Use most recent month that has data (not necessarily current month)
+    let mk = currentMonthKey();
+    if (state.depenses && state.depenses.length > 0) {
+      const hasCurrentMonth = state.depenses.some(d => d.date && d.date.startsWith(mk));
+      if (!hasCurrentMonth) {
+        // Find the most recent month with data
+        const months = [...new Set(state.depenses.map(d => d.date ? d.date.slice(0,7) : ''))].filter(Boolean).sort();
+        if (months.length > 0) mk = months[months.length - 1];
+      }
+    }
+
+    const prevMk = (() => {
+      const [y, m] = mk.split('-').map(Number);
+      const d = new Date(y, m-2, 1);
+      return d.toISOString().slice(0,7);
+    })();
 
     const depMois = depensesDuMois(mk);
     const depPrevMois = depensesDuMois(prevMk);
