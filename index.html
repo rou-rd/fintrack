@@ -1912,15 +1912,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Show "pending" immediately
-    _showSyncDot("🔄 ...", "");
+    _showSyncDot("🔄 ...");
 
-    // Debounce: wait 1.5s after last action before sending to Firebase
+    // Debounce 1.5s — avoid too many Firebase writes
     _autoSaveTimer = setTimeout(async () => {
-      _showSyncDot("⏳ Sync...", "");
+      _showSyncDot("⏳ Sync...");
       try {
         await window._fbSaveData();
-        _showSyncDot("✅ Sauvegardé", "");
+        _showSyncDot("✅ Sauvegardé");
         if (statusEl) statusEl.textContent = "✓ ☁️";
         saveHintTimer = setTimeout(() => {
           if (statusEl) statusEl.textContent = "";
@@ -1928,10 +1927,10 @@ document.addEventListener("DOMContentLoaded", () => {
           if (sync) sync.textContent = "☁️ Connecté";
         }, 2000);
       } catch(e) {
-        _showSyncDot("⚠️ Erreur sync", "");
+        _showSyncDot("⚠️ Erreur sync");
         console.warn("AutoSave error:", e);
       }
-    }, 1500); // 1.5 second debounce
+    }, 1500);
 
     if (csvFileHandle) {
       try { await writeLinkedCsvFile(); } catch(e) { console.warn(e); }
@@ -3399,13 +3398,16 @@ document.addEventListener("DOMContentLoaded", () => {
       window._fbSaveData().then(() => {
         console.log("[Import] ✅ Firebase save complete!");
         if (hint) {
-          hint.textContent = `✅ Importé ! ${depenses.length} dépenses. Rechargement...`;
+          hint.textContent = `✅ Importé ! ${depenses.length} dépenses, ${comptes.length} comptes.`;
+          setTimeout(() => hint.style.display = "none", 5000);
         }
-        setTimeout(() => location.reload(), 1500);
+        // Apply state directly without reload
+        if (typeof window._applyState === 'function') {
+          window._applyState(window.state);
+        }
       }).catch(e => {
         console.error("[Import] Firebase save error:", e);
         if (hint) hint.textContent = "⚠️ Erreur: " + e.message;
-        renderAll();
       });
     } else {
       if (hint) {
@@ -3496,6 +3498,7 @@ document.addEventListener("DOMContentLoaded", () => {
       montant,
       moyen: byId("add-moyen").value.trim(),
     });
+    saveState();
     byId("add-montant").value = "";
     byId("add-desc").value = "";
     saveState();
@@ -4553,38 +4556,34 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnDeleteAll) {
     btnDeleteAll.addEventListener("click", () => {
       confirmAction("⚠️ Supprimer TOUTES les données (dépenses, comptes, wishlist…) ? Cette action est irréversible.", async () => {
-        // Clear ALL data including wishlist
-        state.depenses       = [];
-        state.operations     = [];
-        state.wishlist             = [];
-        state.wishlistCategories   = defaultState().wishlistCategories;
-        state.budgetMensuelGlobal = 0;
-        state.budgetsCategorie    = {};
-        state.personnes = defaultState().personnes;
-        state.categories = defaultState().categories;
-        state.comptes    = defaultState().comptes;
+        // ✅ SUPPRESSION TOTALE — Clear ALL data + sync Firebase
+        const empty = defaultState();
+        Object.keys(empty).forEach(k => { state[k] = empty[k]; });
 
-        // Force save to localStorage immediately and synchronously
-        
-        // Wait for async saveState (CSV file write if linked)
-        await saveState();
+        // Immediate Firebase sync
+        if (window._fbUser && typeof window._fbSaveData === 'function') {
+          try {
+            await window._fbSaveData();
+            console.log('[DeleteAll] ✅ Firebase cleared');
+          } catch(e) {
+            console.error('[DeleteAll] Firebase error:', e);
+          }
+        }
 
         // Re-render everything
-        renderAll();
-        renderWishlist();
-
-        // Clear wishlist UI directly as safety net
-        const wlCards = byId("wl-cards");
-        if (wlCards) wlCards.innerHTML = "";
-        const wlKpi = byId("wl-kpi");
-        if (wlKpi) wlKpi.innerHTML = "";
-        const wlEmpty = byId("wl-empty");
-        if (wlEmpty) wlEmpty.style.display = "block";
-        const wlRec = byId("wl-recommendations");
-        if (wlRec) wlRec.innerHTML = "";
+        if (typeof window._applyState === 'function') {
+          window._applyState(state);
+        } else {
+          renderAll();
+          renderWishlist();
+        }
 
         const hint = byId("delete-all-hint");
-        if (hint) { hint.style.display = "inline"; setTimeout(() => hint.style.display = "none", 3000); }
+        if (hint) {
+          hint.style.display = "inline";
+          hint.textContent = "✅ Toutes les données supprimées et synchronisées";
+          setTimeout(() => hint.style.display = "none", 3000);
+        }
       });
     });
   }
@@ -5393,6 +5392,7 @@ document.addEventListener("DOMContentLoaded", () => {
       recurrent: false,
       factureId: f.id,
     });
+    saveState();
 
     // 2. Opération débit — apparaît dans l'historique du compte
     if (!state.operations) state.operations = [];
@@ -5605,6 +5605,7 @@ document.addEventListener("DOMContentLoaded", () => {
           // Supprimer la dépense liée
           if (f.linkedDepenseId)
             state.depenses = state.depenses.filter(d => d.id !== f.linkedDepenseId);
+          saveState();
           // Supprimer l'opération liée
           if (f.linkedOperationId)
             state.operations = (state.operations || []).filter(o => o.id !== f.linkedOperationId);
