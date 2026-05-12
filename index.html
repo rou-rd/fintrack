@@ -519,19 +519,29 @@ input[type=file]{display:none}
         const data = snap.data();
         const remote = data.state;
 
-        if (remote && (remote.depenses || remote.version === 2)) {
-          console.log('[Firebase] Got data:', remote.depenses?.length, 'dépenses');
+        if (remote && remote.version === 2) {
+          // Valid state (even if empty after delete-all)
+          console.log('[Firebase] Got data:', remote.depenses?.length || 0, 'dépenses');
           remote.version = 2;
           _lastSave = data.updatedAt || 0;
 
-          // ✅ THE FIX: call window._applyState() which is defined in app scope
           if (typeof window._applyState === 'function') {
             window._applyState(remote);
           }
-          setSyncStatus('☁️ ' + (remote.depenses?.length||0) + ' dépenses', 3000);
+          const count = remote.depenses?.length || 0;
+          setSyncStatus(count > 0 ? '☁️ ' + count + ' dépenses' : '☁️ Connecté', 3000);
+
+        } else if (remote && Array.isArray(remote.depenses)) {
+          // State without version field — still valid
+          remote.version = 2;
+          _lastSave = data.updatedAt || 0;
+          if (typeof window._applyState === 'function') {
+            window._applyState(remote);
+          }
+          setSyncStatus('☁️ Connecté', 2000);
 
         } else {
-          console.log('[Firebase] Empty data for user');
+          console.log('[Firebase] No valid state found');
           setSyncStatus('☁️ Connecté');
         }
       } else {
@@ -556,11 +566,14 @@ input[type=file]{display:none}
       const cptCount = window.state?.comptes?.length || 0;
       console.log(`[Firebase] Saving: ${depCount} dépenses, ${cptCount} comptes, uid=${user.uid}`);
 
-      if (depCount === 0 && cptCount === 0) {
-        console.warn('[Firebase] State is empty — skipping save to avoid overwriting data!');
-        setSyncStatus('⚠️ State vide, save ignoré');
+      // Only skip if this is an accidental save (no user action)
+      // Delete-all intentionally creates empty state — allow it
+      if (depCount === 0 && cptCount === 0 && !window._allowEmptySave) {
+        console.warn('[Firebase] State is empty — skipping save (set window._allowEmptySave=true to force)');
+        setSyncStatus('⚠️ Rien à sauvegarder');
         return;
       }
+      window._allowEmptySave = false; // reset after use
 
       const docRef = doc(db, 'users', user.uid);
       console.log('[Firebase] Writing to path:', `users/${user.uid}/data/state`);
@@ -4560,11 +4573,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const empty = defaultState();
         Object.keys(empty).forEach(k => { state[k] = empty[k]; });
 
-        // Immediate Firebase sync
+        // Immediate Firebase sync — allow empty state save
         if (window._fbUser && typeof window._fbSaveData === 'function') {
           try {
+            window._allowEmptySave = true; // Allow saving empty state
             await window._fbSaveData();
-            console.log('[DeleteAll] ✅ Firebase cleared');
+            console.log('[DeleteAll] ✅ Firebase cleared successfully');
           } catch(e) {
             console.error('[DeleteAll] Firebase error:', e);
           }
