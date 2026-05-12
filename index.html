@@ -517,7 +517,8 @@ input[type=file]{display:none}
         const data = snap.data();
         const remote = data.state;
         if (remote && remote.version === 2) {
-          // Replace entire state with Firebase data
+          // Replace entire state with Firebase data (keeps reference)
+          Object.keys(window.state).forEach(k => delete window.state[k]);
           Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
           _lastSave = data.updatedAt || 0;
           if (typeof renderAll === 'function') renderAll();
@@ -543,17 +544,28 @@ input[type=file]{display:none}
     if (!user || _saving) return;
     _saving = true;
     const now = Date.now();
-    _lastSave = now; // Set BEFORE await so snapshot won't overwrite
+    _lastSave = now;
     try {
+      // Debug: verify what we're saving
+      const depCount = window.state?.depenses?.length || 0;
+      const cptCount = window.state?.comptes?.length || 0;
+      console.log(`[Firebase] Saving: ${depCount} dépenses, ${cptCount} comptes, uid=${user.uid}`);
+
+      if (depCount === 0 && cptCount === 0) {
+        console.warn('[Firebase] State is empty — skipping save to avoid overwriting data!');
+        setSyncStatus('⚠️ State vide, save ignoré');
+        return;
+      }
+
       await setDoc(
         doc(db, 'users', user.uid, 'data', 'state'),
         { state: window.state, updatedAt: now }
       );
-      // NO localStorage — Firebase only
+      console.log(`[Firebase] ✅ Saved successfully: ${depCount} dépenses`);
       setSyncStatus('☁️ Sauvegardé', 2000);
     } catch(e) {
-      console.error('Save error:', e);
-      setSyncStatus('⚠️ Erreur sauvegarde');
+      console.error('[Firebase] Save error:', e);
+      setSyncStatus('⚠️ Erreur: ' + e.message);
     } finally {
       _saving = false;
     }
@@ -601,9 +613,12 @@ input[type=file]{display:none}
       if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
       setLoggedOut();
 
-      // Clear state — NO localStorage fallback
+      // Clear state — reset to empty without breaking reference
       if (typeof defaultState === 'function') {
-        window.state = defaultState();
+        const empty = defaultState();
+        // Reset properties of existing state object (keeps reference intact)
+        Object.keys(window.state).forEach(k => delete window.state[k]);
+        Object.assign(window.state, empty);
         if (typeof renderAll === 'function') renderAll();
       }
       showLoginPage();
@@ -1511,6 +1526,42 @@ input[type=file]{display:none}
       if (menu) menu.classList.toggle('open');
     }
   </script>
+
+  <!-- Debug helper -->
+  <script>
+    window.checkFirebase = function() {
+      console.log("=== FINTRACK DEBUG ===");
+      console.log("User:", window._fbUser?.email || "NOT CONNECTED");
+      console.log("State depenses:", window.state?.depenses?.length || 0);
+      console.log("State comptes:", window.state?.comptes?.length || 0);
+      console.log("State categories:", window.state?.categories?.length || 0);
+      console.log("State wishlist:", window.state?.wishlist?.length || 0);
+      console.log("window.state === state:", window.state === window.state);
+      console.log("===================");
+      alert(
+        "User: " + (window._fbUser?.email || "NON CONNECTÉ") + "\n" +
+        "Dépenses: " + (window.state?.depenses?.length || 0) + "\n" +
+        "Comptes: " + (window.state?.comptes?.length || 0) + "\n" +
+        "Catégories: " + (window.state?.categories?.length || 0)
+      );
+    };
+    window.forceSave = async function() {
+      if (window._fbSaveData) {
+        alert("Sauvegarde en cours...");
+        await window._fbSaveData();
+        alert("✅ Sauvegardé sur Firebase!");
+      } else {
+        alert("❌ Firebase non connecté");
+      }
+    };
+    window.forceLoad = async function() {
+      if (window._fbLoadData) {
+        await window._fbLoadData();
+        alert("✅ Données rechargées depuis Firebase!");
+      }
+    };
+    console.log("🔧 Debug tools: checkFirebase(), forceSave(), forceLoad()");
+  </script>
 </body>
 
 </html>
@@ -1677,7 +1728,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /** @type {ReturnType<typeof defaultState>} */
-  let state = defaultState();
+  // Make state global so Firebase module can access it
+  window.state = defaultState();
+  let state = window.state; // Reference to same object
   const charts = {};
 
   function loadState() {
@@ -3255,6 +3308,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (factureCats.length) state.factureCategories = factureCats;
     state.version = 2;
 
+    // Ensure window.state is synced (same reference check)
+    if (window.state !== state) {
+      console.warn("[Import] window.state !== state — syncing manually");
+      Object.keys(state).forEach(k => { window.state[k] = state[k]; });
+    }
+
+    console.log("[Import] Parsed:",
+      depenses.length, "dépenses,",
+      comptes.length, "comptes,",
+      categories.length, "catégories,",
+      "state.depenses.length =", window.state.depenses?.length
+    );
+
     // ✅ IMPORT: save to Firebase IMMEDIATELY (bypass debounce)
     const hint = byId("import-db-hint");
     if (hint) {
@@ -3266,15 +3332,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // Force immediate Firebase save (no debounce)
     if (window._fbUser && typeof window._fbSaveData === "function") {
       if (typeof window._clearAutoSave === 'function') window._clearAutoSave();
+      // Log state before save
+      console.log("[Import] State before save:",
+        "depenses:", window.state.depenses?.length,
+        "comptes:", window.state.comptes?.length,
+        "categories:", window.state.categories?.length
+      );
+
       window._fbSaveData().then(() => {
+        console.log("[Import] ✅ Firebase save complete!");
         if (hint) {
           hint.textContent = `✅ Importé ! ${depenses.length} dépenses. Rechargement...`;
         }
-        // Reload page to show all data fresh from Firebase
         setTimeout(() => location.reload(), 1500);
       }).catch(e => {
-        console.error("Import Firebase save error:", e);
-        if (hint) hint.textContent = "⚠️ Erreur sauvegarde Firebase: " + e.message;
+        console.error("[Import] Firebase save error:", e);
+        if (hint) hint.textContent = "⚠️ Erreur: " + e.message;
         renderAll();
       });
     } else {
@@ -3487,7 +3560,11 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     if (loaderStatus) loaderStatus.textContent = "Connexion en cours…";
     // ✅ Empty state — Firebase will load real data after login
-    window.state = typeof defaultState === "function" ? defaultState() : window.state;
+    if (typeof defaultState === "function") {
+      const empty = defaultState();
+      Object.keys(window.state).forEach(k => delete window.state[k]);
+      Object.assign(window.state, empty);
+    }
     renderAll();
   } catch(e) {
     console.error("FinTrack init error:", e);
@@ -5743,6 +5820,42 @@ document.addEventListener("DOMContentLoaded", () => {
       const menu = document.getElementById('fb-menu');
       if (menu) menu.classList.toggle('open');
     }
+  </script>
+
+  <!-- Debug helper -->
+  <script>
+    window.checkFirebase = function() {
+      console.log("=== FINTRACK DEBUG ===");
+      console.log("User:", window._fbUser?.email || "NOT CONNECTED");
+      console.log("State depenses:", window.state?.depenses?.length || 0);
+      console.log("State comptes:", window.state?.comptes?.length || 0);
+      console.log("State categories:", window.state?.categories?.length || 0);
+      console.log("State wishlist:", window.state?.wishlist?.length || 0);
+      console.log("window.state === state:", window.state === window.state);
+      console.log("===================");
+      alert(
+        "User: " + (window._fbUser?.email || "NON CONNECTÉ") + "\n" +
+        "Dépenses: " + (window.state?.depenses?.length || 0) + "\n" +
+        "Comptes: " + (window.state?.comptes?.length || 0) + "\n" +
+        "Catégories: " + (window.state?.categories?.length || 0)
+      );
+    };
+    window.forceSave = async function() {
+      if (window._fbSaveData) {
+        alert("Sauvegarde en cours...");
+        await window._fbSaveData();
+        alert("✅ Sauvegardé sur Firebase!");
+      } else {
+        alert("❌ Firebase non connecté");
+      }
+    };
+    window.forceLoad = async function() {
+      if (window._fbLoadData) {
+        await window._fbLoadData();
+        alert("✅ Données rechargées depuis Firebase!");
+      }
+    };
+    console.log("🔧 Debug tools: checkFirebase(), forceSave(), forceLoad()");
   </script>
 </body>
 </html>
