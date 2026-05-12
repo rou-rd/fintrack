@@ -356,24 +356,27 @@ input[type=file]{display:none}
   th,td{padding:8px 8px}
   .table-wrap{font-size:12px}
 }
+
+  /* ═══ AUTH GUARD ═══ */
+  .app-hidden .main { display: none !important; }
+  .app-hidden nav   { display: none !important; }
 </style>
 
   <!-- ═══ FIREBASE SDK ═══ -->
   <script type="module">
-  // ══════════════════════════════════════════════════════════
-  //  FINTRACK — FIREBASE AUTH + FIRESTORE SYNC
-  //  Fonctionne pour tous les utilisateurs
-  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
+  //  FINTRACK — 100% FIREBASE (plus de localStorage)
+  //  Toutes les données dans Firestore
+  // ══════════════════════════════════════════════════════════════
   import { initializeApp }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup,
-           signInWithRedirect, getRedirectResult,
+  import { getAuth, GoogleAuthProvider,
+           signInWithPopup, signInWithRedirect, getRedirectResult,
            signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, doc, setDoc, getDoc, onSnapshot }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // ── CONFIG ───────────────────────────────────────────────
   const firebaseConfig = {
     apiKey:            "AIzaSyCrYOyadkNjuX3dSoX49ExSDzFuURd5NNM",
     authDomain:        "fintrack-7965e.firebaseapp.com",
@@ -390,12 +393,73 @@ input[type=file]{display:none}
   let _unsubscribe = null;
   let _lastSave    = 0;
   let _saving      = false;
+  let _currentUser = null;
 
-  // ── UI HELPERS ───────────────────────────────────────────
-  function ui(id) { return document.getElementById(id); }
+  const ui = id => document.getElementById(id);
 
+  // ── SPLASH / LOADING SCREEN ──────────────────────────────────
+  function showSplash(msg) {
+    let el = ui('fb-splash');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'fb-splash';
+      el.style.cssText = `
+        position:fixed;inset:0;z-index:99999;
+        background:var(--bg,#0b0f1c);
+        display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:16px;
+        transition:opacity .3s;
+      `;
+      el.innerHTML = `
+        <div style="width:64px;height:64px;border-radius:16px;
+          background:linear-gradient(135deg,#1a3a8f,#3d72d8);
+          display:flex;align-items:center;justify-content:center;
+          font-size:24px;font-weight:800;color:white;letter-spacing:-1px">FT</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text,#e4eaf6)">FinTrack</div>
+        <div id="fb-splash-msg" style="font-size:13px;color:var(--muted2,#7080a0)"></div>
+        <div style="width:28px;height:28px">
+          <svg viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="11" stroke="var(--border2,#1e2640)" stroke-width="2.5"/>
+            <path d="M14 3 A11 11 0 0 1 25 14" stroke="#3d72d8" stroke-width="2.5" stroke-linecap="round">
+              <animateTransform attributeName="transform" type="rotate"
+                from="0 14 14" to="360 14 14" dur="0.8s" repeatCount="indefinite"/>
+            </path>
+          </svg>
+        </div>
+      `;
+      document.body.appendChild(el);
+    }
+    const m = ui('fb-splash-msg');
+    if (m) m.textContent = msg || '';
+    el.style.opacity = '1';
+    el.style.display = 'flex';
+  }
+
+  function hideSplash() {
+    const el = ui('fb-splash');
+    if (!el) return;
+    el.style.opacity = '0';
+    setTimeout(() => { el.style.display = 'none'; }, 350);
+  }
+
+  // ── SHOW LOGIN PAGE ──────────────────────────────────────────
+  function showLoginPage() {
+    document.body.classList.add('app-hidden');
+    // Reuse the early login page created in <head>
+    const el = ui('fb-login-page');
+    if (el) el.style.display = 'flex';
+  }
+
+  function hideLoginPage() {
+    document.body.classList.remove('app-hidden');
+    // Hide login page
+    const el = ui('fb-login-page');
+    if (el) el.style.display = 'none';
+  }
+
+  // ── TOPBAR AUTH UI ───────────────────────────────────────────
   function setLoggedIn(user) {
-    const login    = ui('fb-login-btn');
+    const loginBtn = ui('fb-login-btn');
     const block    = ui('fb-user-block');
     const photo    = ui('fb-user-photo');
     const initials = ui('fb-initials');
@@ -404,6 +468,7 @@ input[type=file]{display:none}
     const sync     = ui('fb-menu-sync');
 
     const initial = (user.displayName || user.email || '?').charAt(0).toUpperCase();
+
     if (photo) {
       if (user.photoURL) {
         photo.src = user.photoURL;
@@ -414,84 +479,66 @@ input[type=file]{display:none}
         if (initials) { initials.textContent = initial; initials.style.display = 'flex'; }
       }
     }
+
     const displayName = user.displayName || user.email;
     if (name)     name.textContent     = displayName;
     if (menuName) menuName.textContent = displayName;
     if (sync)     sync.textContent     = '☁️ Connecté';
-    if (login)    login.style.display  = 'none';
-    if (block)    block.style.display  = 'flex';
+
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (block)    block.style.display    = 'flex';
   }
 
   function setLoggedOut() {
-    const login = ui('fb-login-btn');
-    const block = ui('fb-user-block');
-    const dd    = ui('fb-dropdown');
+    const loginBtn = ui('fb-login-btn');
+    const block    = ui('fb-user-block');
+    const dd       = ui('fb-dropdown');
 
-    if (login) login.style.display = 'flex';
-    if (block) block.style.display = 'none';
-    if (dd)    dd.classList.remove('show');
+    if (loginBtn) loginBtn.style.display = 'flex';
+    if (block)    block.style.display    = 'none';
+    if (dd)       dd.classList.remove('show');
   }
 
-  function setSyncStatus(msg, timeout = 0) {
+  function setSyncStatus(msg, revertMs = 0) {
     const el = ui('fb-menu-sync');
     if (!el) return;
     el.textContent = msg;
-    if (timeout > 0) setTimeout(() => { el.textContent = '☁️ Connecté'; }, timeout);
+    if (revertMs > 0) setTimeout(() => { el.textContent = '☁️ Connecté'; }, revertMs);
   }
 
-  function showAuthError(msg) {
-    // Show error as toast notification instead of alert
-    const t = document.createElement('div');
-    t.style.cssText = `
-      position:fixed; top:60px; left:50%; transform:translateX(-50%);
-      background:#e24b4a; color:white; padding:10px 20px;
-      border-radius:10px; font-size:13px; font-weight:500;
-      z-index:99999; box-shadow:0 4px 20px rgba(0,0,0,.4);
-      animation: slideDown .3s ease;
-    `;
-    t.textContent = '❌ ' + msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 4000);
-  }
-
-  // ── LOAD DATA FROM FIRESTORE ─────────────────────────────
+  // ── LOAD FROM FIRESTORE ──────────────────────────────────────
   async function loadData(user) {
+    // Show subtle loading indicator
+    const syncEl = document.getElementById('fb-menu-sync');
+    if (syncEl) syncEl.textContent = '⏳ Chargement...';
     try {
-      setSyncStatus('⏳ Chargement...');
       const snap = await getDoc(doc(db, 'users', user.uid, 'data', 'state'));
-
       if (snap.exists()) {
-        const remote = snap.data().state;
-        if (remote && remote.version === 2 && Array.isArray(remote.depenses)) {
-          // Merge remote data into state
-          Object.assign(window.state, remote);
-          _lastSave = snap.data().updatedAt || 0;
-
-          // Save to local storage as cache
-          if (typeof STORAGE_KEY !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(window.state));
-          }
-
+        const data = snap.data();
+        const remote = data.state;
+        if (remote && remote.version === 2) {
+          // Replace entire state with Firebase data
+          Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
+          _lastSave = data.updatedAt || 0;
           if (typeof renderAll === 'function') renderAll();
           setSyncStatus('☁️ Données chargées', 2000);
         } else {
-          // New user or old format — push local data to cloud
-          setSyncStatus('☁️ Premier démarrage');
+          // First time: upload local data
           await saveData(user);
         }
       } else {
-        // No data in cloud yet — upload local data
-        setSyncStatus('⬆️ Envoi données locales...');
+        // New user: upload local data
         await saveData(user);
-        setSyncStatus('☁️ Connecté', 0);
       }
     } catch(e) {
-      console.error('Firestore load error:', e);
-      setSyncStatus('⚠️ Erreur sync');
+      console.error('Load error:', e);
+      setSyncStatus('⚠️ Erreur chargement');
+    } finally {
+      // Loading done
     }
   }
 
-  // ── SAVE DATA TO FIRESTORE ───────────────────────────────
+  // ── SAVE TO FIRESTORE ────────────────────────────────────────
   async function saveData(user) {
     if (!user || _saving) return;
     _saving = true;
@@ -502,114 +549,139 @@ input[type=file]{display:none}
         doc(db, 'users', user.uid, 'data', 'state'),
         { state: window.state, updatedAt: now }
       );
-      setSyncStatus('☁️ Sync OK', 1500);
+      // NO localStorage — Firebase only
+      setSyncStatus('☁️ Sauvegardé', 2000);
     } catch(e) {
-      console.error('Firestore save error:', e);
+      console.error('Save error:', e);
       setSyncStatus('⚠️ Erreur sauvegarde');
     } finally {
       _saving = false;
     }
   }
 
-  // ── REALTIME LISTENER ────────────────────────────────────
+  // ── REALTIME LISTENER ────────────────────────────────────────
   function startSync(user) {
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
-
-    const docRef = doc(db, 'users', user.uid, 'data', 'state');
-    _unsubscribe = onSnapshot(docRef, (snap) => {
-      if (!snap.exists()) return;
-      const remoteTs = snap.data().updatedAt || 0;
-
-      // Only apply if remote is newer than our last save
-      if (remoteTs > _lastSave + 1000) {
-        const remote = snap.data().state;
-        if (remote && remote.version === 2) {
-          Object.assign(window.state, remote);
-          _lastSave = remoteTs;
-          if (typeof renderAll === 'function') renderAll();
-          setSyncStatus('🔄 Mis à jour', 2000);
+    _unsubscribe = onSnapshot(
+      doc(db, 'users', user.uid, 'data', 'state'),
+      (snap) => {
+        if (!snap.exists()) return;
+        const remoteTs = snap.data().updatedAt || 0;
+        if (remoteTs > _lastSave + 1000) {
+          const remote = snap.data().state;
+          if (remote && remote.version === 2) {
+            Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
+            _lastSave = remoteTs;
+            if (typeof renderAll === 'function') renderAll();
+            setSyncStatus('🔄 Mis à jour', 2000);
+          }
         }
-      }
-    }, (err) => {
-      console.error('Snapshot error:', err);
-    });
+      },
+      err => console.error('Snapshot error:', err)
+    );
   }
 
-  // ── AUTH STATE ───────────────────────────────────────────
+  // ── AUTH STATE CHANGE ────────────────────────────────────────
   onAuthStateChanged(auth, async (user) => {
     if (user) {
+      _currentUser = user;
       window._fbUser = user;
       setLoggedIn(user);
+      hideLoginPage();
       await loadData(user);
       startSync(user);
     } else {
+      _currentUser = null;
       window._fbUser = null;
       if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
       setLoggedOut();
 
-      // Clear state on logout
+      // Clear state — NO localStorage fallback
       if (typeof defaultState === 'function') {
         window.state = defaultState();
-        if (typeof STORAGE_KEY !== 'undefined') {
-          localStorage.removeItem(STORAGE_KEY);
-        }
         if (typeof renderAll === 'function') renderAll();
       }
+      showLoginPage();
     }
   });
 
-  // ── CHECK REDIRECT RESULT (for iOS/Safari) ───────────────
-  getRedirectResult(auth).then((result) => {
-    if (result?.user) console.log('Redirect login success:', result.user.email);
-  }).catch((e) => {
-    if (e.code !== 'auth/no-current-user') console.error('Redirect error:', e);
-  });
+  // Handle redirect result (iOS/Safari)
+  getRedirectResult(auth).catch(() => {});
 
-  // ── GLOBAL FUNCTIONS ────────────────────────────────────
+  // Login page is shown immediately by the <head> script
+  // No need for splash here — Firebase will handle the rest
+
+  // ── GLOBAL FUNCTIONS ────────────────────────────────────────
+  window._fbUser = null;
+
+  window._fbSaveData = async function() {
+    if (_currentUser) await saveData(_currentUser);
+  };
+
   window._fbLogin = async function() {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-
-    // Try popup first, fallback to redirect (for Safari/iOS)
     try {
       await signInWithPopup(auth, provider);
     } catch(e) {
-      if (e.code === 'auth/popup-blocked' ||
-          e.code === 'auth/popup-closed-by-user') {
-        // Fallback to redirect for mobile/Safari
-        try {
-          await signInWithRedirect(auth, provider);
-        } catch(e2) {
-          showAuthError('Connexion impossible: ' + e2.message);
-        }
-      } else if (e.code !== 'auth/cancelled-popup-request') {
-        showAuthError(e.message);
+      if (e.code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, provider);
+      } else if (e.code !== 'auth/cancelled-popup-request' &&
+                 e.code !== 'auth/popup-closed-by-user') {
+        // Show error toast
+        const t = document.createElement('div');
+        t.style.cssText = `position:fixed;top:70px;left:50%;transform:translateX(-50%);
+          background:#e24b4a;color:white;padding:10px 20px;border-radius:10px;
+          font-size:13px;font-weight:500;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.4)`;
+        t.textContent = '❌ ' + (e.message || 'Erreur connexion');
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 4000);
       }
     }
   };
 
   window._fbLogout = async function() {
-    const dd = document.getElementById('fb-dropdown');
+    const dd = ui('fb-dropdown');
     if (dd) dd.classList.remove('show');
     if (confirm('Se déconnecter de FinTrack ?')) {
-      try {
-        await signOut(auth);
-      } catch(e) {
-        showAuthError('Erreur déconnexion: ' + e.message);
-      }
+      await signOut(auth);
     }
-  };
-
-  window._fbSaveData = async function() {
-    if (window._fbUser) await saveData(window._fbUser);
-  };
-
-  window._fbLoadData = async function() {
-    if (window._fbUser) await loadData(window._fbUser);
   };
 
 </script>
 
+  <script>
+    // Show login page IMMEDIATELY — before Firebase loads
+    // This prevents black screen
+    document.addEventListener("DOMContentLoaded", function() {
+      document.body.classList.add("app-hidden");
+
+      // Create login page right away
+      var lp = document.createElement("div");
+      lp.id = "fb-login-page";
+      lp.style.cssText = "position:fixed;inset:0;z-index:9998;background:#0b0f1c;display:flex;align-items:center;justify-content:center;";
+      lp.innerHTML = '<div style="text-align:center;padding:40px 32px;background:#141926;border-radius:20px;border:1px solid #1e2640;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:340px;width:90%;">'
+        + '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1a3a8f,#3d72d8);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:white;letter-spacing:-1px">FT</div>'
+        + '<div style="font-size:22px;font-weight:800;color:#e4eaf6;margin-bottom:6px">FinTrack</div>'
+        + '<div style="font-size:13px;color:#7080a0;margin-bottom:28px;line-height:1.5">Connectez-vous pour accéder<br>à vos finances personnelles</div>'
+        + '<button id="fb-login-early-btn" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;background:white;color:#3c3c3c;border:1px solid #dadce0;border-radius:12px;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.15);">'
+        + '<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.84-1.6 2.4v2h2.6c1.52-1.4 2.4-3.47 2.4-5.92 0-.57-.05-1.12-.17-1.64z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2c-.71.48-1.63.76-2.7.76-2.07 0-3.83-1.4-4.46-3.27H1.86v2.07C3.18 15.06 5.89 17 8.98 17z"/><path fill="#FBBC05" d="M4.52 10.55c-.16-.48-.25-.99-.25-1.55s.09-1.07.25-1.55V5.38H1.86A8.01 8.01 0 0 0 1 9c0 1.29.31 2.51.86 3.62l2.66-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.22.4 3.04 1.2l2.27-2.27C12.95 1.89 11.14 1 8.98 1 5.89 1 3.18 2.94 1.86 5.38l2.66 2.07c.63-1.87 2.39-3.27 4.46-3.27z"/></svg>'
+        + 'Continuer avec Google</button>'
+        + '<div style="font-size:11px;color:#4f5f7a;margin-top:16px;line-height:1.5">Vos données sont privées et sécurisées.<br>Chaque utilisateur a son propre espace.</div>'
+        + '</div>';
+      document.body.appendChild(lp);
+
+      // Wire button — waits for fbLogin to be defined
+      document.getElementById("fb-login-early-btn").addEventListener("click", function() {
+        if (typeof fbLogin === "function") fbLogin();
+        else if (typeof window._fbLogin === "function") window._fbLogin();
+        else setTimeout(function() {
+          if (typeof fbLogin === "function") fbLogin();
+          else if (typeof window._fbLogin === "function") window._fbLogin();
+        }, 1000);
+      });
+    });
+  </script>
 </head>
 <body>
 <!-- LOADING SCREEN -->
@@ -1565,50 +1637,18 @@ document.addEventListener("DOMContentLoaded", () => {
   function defaultState() {
     return {
       version: 2,
-      personnes: [
-        { id: uid(), nom: "Moi" },
-        { id: uid(), nom: "Famille" },
-      ],
-      categories: [
-        { id: uid(), nom: "Alimentation" },
-        { id: uid(), nom: "Transport" },
-        { id: uid(), nom: "Logement" },
-        { id: uid(), nom: "Loisirs" },
-        { id: uid(), nom: "Autre" },
-      ],
-      comptes: [
-        { id: uid(), nom: "Compte courant", type: "courant", soldeInitial: 2500 },
-        { id: uid(), nom: "Épargne", type: "epargne", soldeInitial: 8000 },
-        { id: uid(), nom: "Espèces", type: "especes", soldeInitial: 200 },
-      ],
-      budgetMensuelGlobal: 0,
-      budgetsCategorie: {},
-      depenses: [],
-      operations: [],
-      recurringDue: [],
-      wishlist: [],
-      transfers: [],
-      spMonthlyBudget: 0,
-      spLocks: {},
-      factures: [],
-      factureCategories: [
-        { id: "fcat_elec",    nom: "Électricité",  icon: "⚡" },
-        { id: "fcat_eau",     nom: "Eau",           icon: "💧" },
-        { id: "fcat_net",     nom: "Internet",      icon: "🌐" },
-        { id: "fcat_loyer",   nom: "Loyer",         icon: "🏠" },
-        { id: "fcat_tel",     nom: "Téléphone",     icon: "📱" },
-        { id: "fcat_assur",   nom: "Assurance",     icon: "🛡️" },
-        { id: "fcat_autre",   nom: "Autre",         icon: "🧾" },
-      ],
-      wishlistCategories: [
-        { id: "wlcat_mode",    nom: "Mode & Vêtements",   icon: "👗", color: 0 },
-        { id: "wlcat_tech",    nom: "Tech & Électronique", icon: "💻", color: 1 },
-        { id: "wlcat_maison",  nom: "Maison & Déco",       icon: "🏠", color: 2 },
-        { id: "wlcat_sport",   nom: "Sport & Loisirs",     icon: "⚽", color: 3 },
-        { id: "wlcat_voyage",  nom: "Voyage",              icon: "✈️", color: 4 },
-        { id: "wlcat_livre",   nom: "Livres & Culture",    icon: "📚", color: 5 },
-        { id: "wlcat_autre",   nom: "Autre",               icon: "🛍️", color: 7 },
-      ],
+      personnes:            [],
+      categories:           [],
+      comptes:              [],
+      budgetMensuelGlobal:  0,
+      budgetsCategorie:     {},
+      depenses:             [],
+      operations:           [],
+      recurringDue:         [],
+      wishlist:             [],
+      wishlistCategories:   [],
+      transfers:            [],
+      factures:             [],
     };
   }
 
@@ -1617,31 +1657,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const charts = {};
 
   function loadState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        state = defaultState();
-        return;
-      }
-      const o = JSON.parse(raw);
-      if (o && o.version === 2 && Array.isArray(o.depenses)) state = o;
-      else state = defaultState();
-      // Ensure fields added after initial release always exist
-      if (!Array.isArray(state.wishlist)) state.wishlist = [];
-      if (!Array.isArray(state.operations)) state.operations = [];
-      if (!Array.isArray(state.transfers)) state.transfers = [];
-      if (!Array.isArray(state.wishlistCategories) || state.wishlistCategories.length === 0)
-        state.wishlistCategories = defaultState().wishlistCategories;
-      if (typeof state.spMonthlyBudget !== 'number') state.spMonthlyBudget = 0;
-      if (!state.spLocks || typeof state.spLocks !== 'object') state.spLocks = {};
-      if (!Array.isArray(state.factures)) state.factures = [];
-      if (!Array.isArray(state.factureCategories) || state.factureCategories.length === 0)
-        state.factureCategories = defaultState().factureCategories;
-    } catch {
-      state = defaultState();
-    }
+    // Handled by Firebase onAuthStateChanged
+    // State is loaded from Firestore, not localStorage
+    return;
   }
-
   function buildDatabaseCsvText() {
     const lines = [];
     lines.push("##PERSONNES");
@@ -1732,33 +1751,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let saveHintTimer;
   async function saveState() {
-    // 1. Save locally (always, instant)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-
-    // 2. Save to Firebase if connected (async, non-blocking)
-    if (window._fbUser && window._fbSaveData) {
-      window._fbSaveData().then(() => {
-        const syncEl = document.getElementById("fb-menu-sync");
-        if (syncEl) {
-          syncEl.textContent = "☁️ Sync OK";
-          setTimeout(() => { syncEl.textContent = "☁️ Sync activée"; }, 1500);
-        }
-      }).catch(e => console.warn("Firebase save:", e));
-    }
-
+    // 100% Firebase — plus de localStorage
     const statusEl = document.getElementById("save-status");
     clearTimeout(saveHintTimer);
-    if (csvFileHandle) {
+
+    if (window._fbUser && typeof window._fbSaveData === "function") {
+      // Save to Firebase
+      if (statusEl) statusEl.textContent = "⏳ Sauvegarde...";
       try {
-        await writeLinkedCsvFile();
-        if (statusEl) statusEl.textContent = "✓ Navigateur + CSV";
-      } catch (e) {
-        console.warn(e);
-        if (statusEl) statusEl.textContent = "✓ Navigateur (erreur CSV)";
+        await window._fbSaveData();
+        if (statusEl) statusEl.textContent = "✓ ☁️ Sauvegardé";
+      } catch(e) {
+        if (statusEl) statusEl.textContent = "⚠️ Erreur";
+        console.warn("Firebase save:", e);
       }
     } else {
-      if (statusEl) statusEl.textContent = window._fbUser ? "✓ Local + ☁️ Firebase" : "✓ Enregistré localement";
+      // Not connected — warn user
+      if (statusEl) statusEl.textContent = "⚠️ Connectez-vous pour sauvegarder";
     }
+
+    if (csvFileHandle) {
+      try { await writeLinkedCsvFile(); } catch(e) { console.warn(e); }
+    }
+
     playSaveBeep();
     saveHintTimer = setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 2800);
   }
@@ -3216,22 +3231,31 @@ document.addEventListener("DOMContentLoaded", () => {
   // nav buttons bound by wrapper above
 
   byId("btn-save-local").addEventListener("click", async () => {
-    await saveState();
-    // Show Firebase sync feedback on the button itself
-    const btn = byId("btn-save-local");
+    const btn   = byId("btn-save-local");
     const label = btn.querySelector(".nav-label");
-    const origText = label ? label.textContent : "";
-    if (window._fbUser) {
-      if (label) label.textContent = "☁️ Sync...";
-      btn.style.background = "var(--green,#1d9e75)";
+    const orig  = label ? label.textContent : "Enregistrer";
+
+    if (!window._fbUser) {
+      // Not logged in — show warning
+      if (label) label.textContent = "⚠️ Connexion requise";
+      btn.style.background = "var(--amber,#ba7517)";
       setTimeout(() => {
-        if (label) label.textContent = "✓ Sauvegardé";
-        setTimeout(() => {
-          if (label) label.textContent = origText;
-          btn.style.background = "";
-        }, 1500);
-      }, 800);
+        if (label) label.textContent = orig;
+        btn.style.background = "";
+      }, 2500);
+      return;
     }
+
+    // Logged in — save to Firebase
+    if (label) label.textContent = "⏳ Envoi...";
+    btn.style.background = "var(--accent,#3d72d8)";
+    await saveState();
+    if (label) label.textContent = "✅ Sauvegardé";
+    btn.style.background = "var(--green,#1d9e75)";
+    setTimeout(() => {
+      if (label) label.textContent = orig;
+      btn.style.background = "";
+    }, 2000);
   });
 
   // Reset filters
@@ -3375,9 +3399,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   try {
-    if (loaderStatus) loaderStatus.textContent = "Initialisation…";
-    loadState();
-    if (loaderStatus) loaderStatus.textContent = "Rendu de l\'interface…";
+    if (loaderStatus) loaderStatus.textContent = "Connexion en cours…";
+    // ✅ Empty state — Firebase will load real data after login
+    window.state = typeof defaultState === "function" ? defaultState() : window.state;
     renderAll();
   } catch(e) {
     console.error("FinTrack init error:", e);
@@ -4326,8 +4350,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.comptes    = defaultState().comptes;
 
         // Force save to localStorage immediately and synchronously
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-
+        
         // Wait for async saveState (CSV file write if linked)
         await saveState();
 
