@@ -542,9 +542,9 @@ input[type=file]{display:none}
   async function saveData(user) {
     if (!user || _saving) return;
     _saving = true;
+    const now = Date.now();
+    _lastSave = now; // Set BEFORE await so snapshot won't overwrite
     try {
-      const now = Date.now();
-      _lastSave = now;
       await setDoc(
         doc(db, 'users', user.uid, 'data', 'state'),
         { state: window.state, updatedAt: now }
@@ -567,12 +567,17 @@ input[type=file]{display:none}
       (snap) => {
         if (!snap.exists()) return;
         const remoteTs = snap.data().updatedAt || 0;
-        if (remoteTs > _lastSave + 1000) {
+
+        // Only update from remote if it's newer than our last save
+        // AND we're not currently in the middle of saving
+        if (remoteTs > _lastSave + 500 && !_saving) {
           const remote = snap.data().state;
-          if (remote && remote.version === 2) {
+          if (remote && remote.version === 2 &&
+              Array.isArray(remote.depenses) && remote.depenses.length > 0) {
             Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
             _lastSave = remoteTs;
             if (typeof renderAll === 'function') renderAll();
+            if (typeof renderWishlist === 'function') renderWishlist();
             setSyncStatus('🔄 Mis à jour', 2000);
           }
         }
@@ -1771,6 +1776,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let saveHintTimer;
   // ── AUTO-SAVE DEBOUNCE ───────────────────────────────────────────────────────
   let _autoSaveTimer   = null;
+  window._clearAutoSave = () => { clearTimeout(_autoSaveTimer); _autoSaveTimer = null; };
   let _autoSaveStatus  = null;
 
   function _showSyncDot(msg) {
@@ -3248,17 +3254,38 @@ document.addEventListener("DOMContentLoaded", () => {
     state.factures = factures.length ? factures : [];
     if (factureCats.length) state.factureCategories = factureCats;
     state.version = 2;
-    saveState();
-    byId("global-error").textContent = "";
+
+    // ✅ IMPORT: save to Firebase IMMEDIATELY (bypass debounce)
     const hint = byId("import-db-hint");
     if (hint) {
       hint.style.display = "inline";
-      hint.textContent = `✅ Base importée ! ${depenses.length} dépenses, ${wishlist.length} articles wishlist, ${factures.length} factures.`;
-      setTimeout(()=>hint.style.display="none", 4000);
+      hint.textContent = `⏳ Import en cours... envoi sur Firebase...`;
     }
-    renderAll();
-    renderWishlist();
-    try { renderFactures(); } catch(e) {}
+    byId("global-error").textContent = "";
+
+    // Force immediate Firebase save (no debounce)
+    if (window._fbUser && typeof window._fbSaveData === "function") {
+      if (typeof window._clearAutoSave === 'function') window._clearAutoSave();
+      window._fbSaveData().then(() => {
+        if (hint) {
+          hint.textContent = `✅ Importé ! ${depenses.length} dépenses. Rechargement...`;
+        }
+        // Reload page to show all data fresh from Firebase
+        setTimeout(() => location.reload(), 1500);
+      }).catch(e => {
+        console.error("Import Firebase save error:", e);
+        if (hint) hint.textContent = "⚠️ Erreur sauvegarde Firebase: " + e.message;
+        renderAll();
+      });
+    } else {
+      if (hint) {
+        hint.textContent = `✅ Importé ! ${depenses.length} dépenses. ⚠️ Connectez-vous pour sauvegarder sur Firebase.`;
+        setTimeout(() => hint.style.display = "none", 5000);
+      }
+      renderAll();
+      renderWishlist();
+      try { renderFactures(); } catch(e) {}
+    }
   }
 
   function splitCsvLine(line) {
