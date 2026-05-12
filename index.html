@@ -738,6 +738,25 @@ input[type=file]{display:none}
       </div>
     </div>
     <div class="topbar-right" style="display:flex;align-items:center;gap:10px">
+      <!-- Auto-save indicator -->
+      <div id="autosave-indicator" style="
+        font-size:11px; color:var(--muted2);
+        display:none; align-items:center; gap:4px;
+        transition:opacity .3s;
+      ">
+        <span id="autosave-dot" style="
+          width:6px; height:6px; border-radius:50%;
+          background:var(--green,#1d9e75); display:inline-block;
+          animation: pulse 1.5s infinite;
+        "></span>
+        <span id="autosave-text">Sauvegarde...</span>
+      </div>
+      <style>
+        @keyframes pulse {
+          0%,100% { opacity:1; }
+          50%      { opacity:.3; }
+        }
+      </style>
       <button id="btn-theme-toggle" title="Thème clair / sombre"
         style="border:1px solid var(--border2);background:var(--s2);border-radius:var(--r);padding:6px 10px;cursor:pointer;font-size:15px;color:var(--muted2);transition:all .15s">
         🌙
@@ -1750,32 +1769,77 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let saveHintTimer;
+  // ── AUTO-SAVE DEBOUNCE ───────────────────────────────────────────────────────
+  let _autoSaveTimer   = null;
+  let _autoSaveStatus  = null;
+
+  function _showSyncDot(msg) {
+    const el   = document.getElementById("save-status");
+    const ind  = document.getElementById("autosave-indicator");
+    const txt  = document.getElementById("autosave-text");
+    const dot  = document.getElementById("autosave-dot");
+    const sync = document.getElementById("fb-menu-sync");
+
+    if (el) el.textContent = msg;
+    if (sync && window._fbUser) sync.textContent = msg;
+
+    // Show/hide topbar indicator
+    if (ind && window._fbUser) {
+      if (msg.includes("Sync") || msg.includes("⏳")) {
+        ind.style.display = "flex";
+        if (dot) dot.style.background = "#f6a623"; // amber while saving
+        if (txt) txt.textContent = "Sauvegarde...";
+      } else if (msg.includes("✅") || msg.includes("Sauvegardé")) {
+        ind.style.display = "flex";
+        if (dot) dot.style.background = "var(--green,#1d9e75)"; // green when done
+        if (txt) txt.textContent = "Sauvegardé";
+        setTimeout(() => { if (ind) ind.style.display = "none"; }, 2000);
+      } else {
+        ind.style.display = "none";
+      }
+    }
+  }
+
   async function saveState() {
-    // 100% Firebase — plus de localStorage
     const statusEl = document.getElementById("save-status");
     clearTimeout(saveHintTimer);
+    clearTimeout(_autoSaveTimer);
 
-    if (window._fbUser && typeof window._fbSaveData === "function") {
-      // Save to Firebase
-      if (statusEl) statusEl.textContent = "⏳ Sauvegarde...";
+    if (!window._fbUser) {
+      if (statusEl) statusEl.textContent = "⚠️ Connectez-vous";
+      saveHintTimer = setTimeout(() => {
+        if (statusEl) statusEl.textContent = "";
+      }, 2500);
+      playSaveBeep();
+      return;
+    }
+
+    // Show "pending" immediately
+    _showSyncDot("🔄 ...", "");
+
+    // Debounce: wait 1.5s after last action before sending to Firebase
+    _autoSaveTimer = setTimeout(async () => {
+      _showSyncDot("⏳ Sync...", "");
       try {
         await window._fbSaveData();
-        if (statusEl) statusEl.textContent = "✓ ☁️ Sauvegardé";
+        _showSyncDot("✅ Sauvegardé", "");
+        if (statusEl) statusEl.textContent = "✓ ☁️";
+        saveHintTimer = setTimeout(() => {
+          if (statusEl) statusEl.textContent = "";
+          const sync = document.getElementById("fb-menu-sync");
+          if (sync) sync.textContent = "☁️ Connecté";
+        }, 2000);
       } catch(e) {
-        if (statusEl) statusEl.textContent = "⚠️ Erreur";
-        console.warn("Firebase save:", e);
+        _showSyncDot("⚠️ Erreur sync", "");
+        console.warn("AutoSave error:", e);
       }
-    } else {
-      // Not connected — warn user
-      if (statusEl) statusEl.textContent = "⚠️ Connectez-vous pour sauvegarder";
-    }
+    }, 1500); // 1.5 second debounce
 
     if (csvFileHandle) {
       try { await writeLinkedCsvFile(); } catch(e) { console.warn(e); }
     }
 
     playSaveBeep();
-    saveHintTimer = setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 2800);
   }
 
   async function chooseCsvFileForAutoSave() {
@@ -3231,12 +3295,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // nav buttons bound by wrapper above
 
   byId("btn-save-local").addEventListener("click", async () => {
-    const btn   = byId("btn-save-local");
-    const label = btn.querySelector(".nav-label");
-    const orig  = label ? label.textContent : "Enregistrer";
-
     if (!window._fbUser) {
-      // Not logged in — show warning
+      const btn   = byId("btn-save-local");
+      const label = btn.querySelector(".nav-label");
+      const orig  = label ? label.textContent : "Enregistrer";
       if (label) label.textContent = "⚠️ Connexion requise";
       btn.style.background = "var(--amber,#ba7517)";
       setTimeout(() => {
@@ -3245,17 +3307,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 2500);
       return;
     }
-
-    // Logged in — save to Firebase
-    if (label) label.textContent = "⏳ Envoi...";
-    btn.style.background = "var(--accent,#3d72d8)";
-    await saveState();
-    if (label) label.textContent = "✅ Sauvegardé";
-    btn.style.background = "var(--green,#1d9e75)";
-    setTimeout(() => {
-      if (label) label.textContent = orig;
-      btn.style.background = "";
-    }, 2000);
+    // Force immediate save (skip debounce)
+    await window._fbSaveData();
+    const sync = document.getElementById("fb-menu-sync");
+    if (sync) {
+      sync.textContent = "✅ Sauvegardé";
+      setTimeout(() => { sync.textContent = "☁️ Connecté"; }, 2000);
+    }
   });
 
   // Reset filters
@@ -3342,6 +3400,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!compteId || !montant || montant <= 0) return;
     if (!state.operations) state.operations = [];
     state.operations.push({ id: uid(), date: new Date().toISOString(), compteId, type, montant, motif });
+    saveState();
     byId("op-montant").value = "";
     byId("op-motif").value = "";
     const hint = byId("op-hint");
@@ -5194,6 +5253,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Stocker les ids liés dans la facture pour suppression propre
     f.linkedDepenseId  = depId;
     f.linkedOperationId = opId;
+    saveState(); // Auto-save after facture payment
   }
 
   // ── Inline edit logic ────────────────────────────────────────
