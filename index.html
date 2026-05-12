@@ -518,7 +518,9 @@ input[type=file]{display:none}
       if (snap.exists()) {
         const data = snap.data();
         const remote = data.state;
-        if (remote && remote.version === 2) {
+        // Accept any version or no version
+        if (remote && (remote.version === 2 || remote.depenses)) {
+          if (!remote.version) remote.version = 2; // Set version if missing
           // Replace entire state with Firebase data
           Object.keys(window.state).forEach(k => delete window.state[k]);
           Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
@@ -528,6 +530,7 @@ input[type=file]{display:none}
             window.state.depenses?.length, "dépenses,",
             window.state.comptes?.length, "comptes"
           );
+          window._debugFilter = true; // Enable filter debugging
 
           // Double-render to ensure DOM is ready
           if (typeof renderAll === 'function') renderAll();
@@ -1781,7 +1784,20 @@ document.addEventListener("DOMContentLoaded", () => {
   /** @type {ReturnType<typeof defaultState>} */
   // Make state global so Firebase module can access it
   window.state = defaultState();
-  let state = window.state; // Reference to same object
+  // Use Proxy so 'state' ALWAYS reads from window.state
+  // This fixes the reference issue when Firebase updates window.state
+  const _stateProxy = new Proxy({}, {
+    get(_, key) { return window.state[key]; },
+    set(_, key, value) { window.state[key] = value; return true; },
+    deleteProperty(_, key) { delete window.state[key]; return true; },
+    has(_, key) { return key in window.state; },
+    ownKeys(_) { return Object.keys(window.state); },
+    getOwnPropertyDescriptor(_, key) {
+      const val = window.state[key];
+      return val !== undefined ? { value: val, writable: true, enumerable: true, configurable: true } : undefined;
+    }
+  });
+  let state = _stateProxy;
   const charts = {};
 
   function loadState() {
@@ -2204,6 +2220,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function filteredDepensesListe() {
+    // Debug: log state on every filter call
+    if (window._debugFilter) console.log("[Filter] state.depenses:", state.depenses?.length, "window.state.depenses:", window.state?.depenses?.length);
     const q = byId("f-text").value.trim().toLowerCase();
     const cat = byId("f-cat").value;
     const pers = byId("f-pers").value;
