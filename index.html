@@ -512,17 +512,35 @@ input[type=file]{display:none}
     const syncEl = document.getElementById('fb-menu-sync');
     if (syncEl) syncEl.textContent = '⏳ Chargement...';
     try {
-      const snap = await getDoc(doc(db, 'users', user.uid, 'data', 'state'));
+      const snap = await getDoc(doc(db, 'users', user.uid));
       if (snap.exists()) {
         const data = snap.data();
         const remote = data.state;
         if (remote && remote.version === 2) {
-          // Replace entire state with Firebase data (keeps reference)
+          // Replace entire state with Firebase data
           Object.keys(window.state).forEach(k => delete window.state[k]);
           Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
           _lastSave = data.updatedAt || 0;
+
+          console.log("[Firebase] loadData:",
+            window.state.depenses?.length, "dépenses,",
+            window.state.comptes?.length, "comptes"
+          );
+
           if (typeof renderAll === 'function') renderAll();
-          setSyncStatus('☁️ Données chargées', 2000);
+          if (typeof renderWishlist === 'function') { try { renderWishlist(); } catch(e){} }
+          try { if (typeof renderFactures === 'function') renderFactures(); } catch(e){}
+
+          // Force re-render of current page
+          const activePage = document.querySelector('.page.active') ||
+                             document.querySelector('[data-page].active');
+          if (activePage) {
+            const pageId = activePage.getAttribute('data-page') ||
+                          activePage.id?.replace('page-','');
+            console.log("[Firebase] Re-rendering page:", pageId);
+          }
+
+          setSyncStatus('☁️ ' + (window.state.depenses?.length||0) + ' dépenses', 3000);
         } else {
           // First time: upload local data
           await saveData(user);
@@ -557,12 +575,22 @@ input[type=file]{display:none}
         return;
       }
 
-      await setDoc(
-        doc(db, 'users', user.uid, 'data', 'state'),
-        { state: window.state, updatedAt: now }
-      );
-      console.log(`[Firebase] ✅ Saved successfully: ${depCount} dépenses`);
+      const docRef = doc(db, 'users', user.uid);
+      console.log('[Firebase] Writing to path:', `users/${user.uid}/data/state`);
+      
+      await setDoc(docRef, { state: window.state, updatedAt: now });
+      
+      console.log(`[Firebase] ✅ Saved! depenses=${depCount}, path=users/${user.uid}/data/state`);
       setSyncStatus('☁️ Sauvegardé', 2000);
+
+      // Verify it was saved
+      const verify = await getDoc(docRef);
+      if (verify.exists()) {
+        const saved = verify.data().state;
+        console.log('[Firebase] ✅ Verified in DB:', saved?.depenses?.length, 'dépenses');
+      } else {
+        console.error('[Firebase] ❌ Document not found after save!');
+      }
     } catch(e) {
       console.error('[Firebase] Save error:', e);
       setSyncStatus('⚠️ Erreur: ' + e.message);
@@ -575,7 +603,7 @@ input[type=file]{display:none}
   function startSync(user) {
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
     _unsubscribe = onSnapshot(
-      doc(db, 'users', user.uid, 'data', 'state'),
+      doc(db, 'users', user.uid),
       (snap) => {
         if (!snap.exists()) return;
         const remoteTs = snap.data().updatedAt || 0;
