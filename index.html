@@ -508,71 +508,39 @@ input[type=file]{display:none}
 
   // ── LOAD FROM FIRESTORE ──────────────────────────────────────
   async function loadData(user) {
-    // Pause snapshot during load to avoid race condition
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
-
     const syncEl = document.getElementById('fb-menu-sync');
     if (syncEl) syncEl.textContent = '⏳ Chargement...';
+
     try {
       const snap = await getDoc(doc(db, 'users', user.uid));
+
       if (snap.exists()) {
         const data = snap.data();
         const remote = data.state;
-        // Accept any version or no version
-        if (remote && (remote.version === 2 || remote.depenses)) {
-          if (!remote.version) remote.version = 2; // Set version if missing
-          // Replace entire state with Firebase data
-          Object.keys(window.state).forEach(k => delete window.state[k]);
-          Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
+
+        if (remote && (remote.depenses || remote.version === 2)) {
+          console.log('[Firebase] Got data:', remote.depenses?.length, 'dépenses');
+          remote.version = 2;
           _lastSave = data.updatedAt || 0;
 
-          console.log("[Firebase] loadData:",
-            window.state.depenses?.length, "dépenses,",
-            window.state.comptes?.length, "comptes"
-          );
-          window._debugFilter = true; // Enable filter debugging
-
-          // Double-render to ensure DOM is ready
-          if (typeof renderAll === 'function') renderAll();
-          if (typeof renderWishlist === 'function') { try { renderWishlist(); } catch(e){} }
-          try { if (typeof renderFactures === 'function') renderFactures(); } catch(e){}
-
-          // Re-render after delay to ensure all DOM is ready
-          setTimeout(() => {
-            if (typeof renderAll === 'function') renderAll();
-            if (typeof renderDepensesTable === 'function') renderDepensesTable();
-            if (typeof renderDashboard === 'function') renderDashboard();
-            console.log('[Firebase] Re-render done:', window.state.depenses?.length, 'dépenses');
-          }, 300);
-
-          // One more render for safety
-          setTimeout(() => {
-            if (typeof renderAll === 'function') renderAll();
-          }, 1000);
-
-          // Force re-render of current page
-          const activePage = document.querySelector('.page.active') ||
-                             document.querySelector('[data-page].active');
-          if (activePage) {
-            const pageId = activePage.getAttribute('data-page') ||
-                          activePage.id?.replace('page-','');
-            console.log("[Firebase] Re-rendering page:", pageId);
+          // ✅ THE FIX: call window._applyState() which is defined in app scope
+          if (typeof window._applyState === 'function') {
+            window._applyState(remote);
           }
+          setSyncStatus('☁️ ' + (remote.depenses?.length||0) + ' dépenses', 3000);
 
-          setSyncStatus('☁️ ' + (window.state.depenses?.length||0) + ' dépenses', 3000);
         } else {
-          // First time: upload local data
-          await saveData(user);
+          console.log('[Firebase] Empty data for user');
+          setSyncStatus('☁️ Connecté');
         }
       } else {
-        // New user: upload local data
-        await saveData(user);
+        console.log('[Firebase] New user — no data yet');
+        setSyncStatus('☁️ Connecté');
       }
     } catch(e) {
-      console.error('Load error:', e);
-      setSyncStatus('⚠️ Erreur chargement');
-    } finally {
-      // Loading done
+      console.error('[Firebase] Load error:', e);
+      setSyncStatus('⚠️ Erreur: ' + e.message);
     }
   }
 
@@ -599,17 +567,8 @@ input[type=file]{display:none}
       
       await setDoc(docRef, { state: window.state, updatedAt: now });
       
-      console.log(`[Firebase] ✅ Saved! depenses=${depCount}, path=users/${user.uid}/data/state`);
+      console.log(`[Firebase] ✅ Saved! depenses=${depCount}`);
       setSyncStatus('☁️ Sauvegardé', 2000);
-
-      // Verify it was saved
-      const verify = await getDoc(docRef);
-      if (verify.exists()) {
-        const saved = verify.data().state;
-        console.log('[Firebase] ✅ Verified in DB:', saved?.depenses?.length, 'dépenses');
-      } else {
-        console.error('[Firebase] ❌ Document not found after save!');
-      }
     } catch(e) {
       console.error('[Firebase] Save error:', e);
       setSyncStatus('⚠️ Erreur: ' + e.message);
@@ -638,12 +597,10 @@ input[type=file]{display:none}
             const remoteCount = remote.depenses.length;
             console.log(`[Snapshot] Remote: ${remoteCount} dep, Local: ${localCount} dep, ts diff: ${remoteTs - _lastSave}ms`);
 
-            Object.keys(window.state).forEach(k => delete window.state[k]);
-            Object.keys(remote).forEach(k => { window.state[k] = remote[k]; });
             _lastSave = remoteTs;
-
-            if (typeof renderAll === 'function') renderAll();
-            if (typeof renderWishlist === 'function') { try { renderWishlist(); } catch(e){} }
+            if (typeof window._applyState === 'function') {
+              window._applyState(remote);
+            }
             setSyncStatus('🔄 Mis à jour', 2000);
           }
         }
@@ -667,10 +624,9 @@ input[type=file]{display:none}
       if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
       setLoggedOut();
 
-      // Clear state — reset to empty without breaking reference
+      // Clear state on logout
       if (typeof defaultState === 'function') {
         const empty = defaultState();
-        // Reset properties of existing state object (keeps reference intact)
         Object.keys(window.state).forEach(k => delete window.state[k]);
         Object.assign(window.state, empty);
         if (typeof renderAll === 'function') renderAll();
@@ -1786,24 +1742,40 @@ document.addEventListener("DOMContentLoaded", () => {
   window.state = defaultState();
   // Use Proxy so 'state' ALWAYS reads from window.state
   // This fixes the reference issue when Firebase updates window.state
-  const _stateProxy = new Proxy({}, {
-    get(_, key) { return window.state[key]; },
-    set(_, key, value) { window.state[key] = value; return true; },
-    deleteProperty(_, key) { delete window.state[key]; return true; },
-    has(_, key) { return key in window.state; },
-    ownKeys(_) { return Object.keys(window.state); },
-    getOwnPropertyDescriptor(_, key) {
-      const val = window.state[key];
-      return val !== undefined ? { value: val, writable: true, enumerable: true, configurable: true } : undefined;
+  // Simple direct reference - no Proxy needed
+  let state = window.state;
+
+  // ✅ THE KEY FIX: expose _applyState so Firebase module can
+  // directly update the LOCAL 'state' variable AND trigger render
+  window._applyState = function(remote) {
+    try {
+      // Copy ALL remote properties directly into local state
+      const keys = Object.keys(remote);
+      keys.forEach(k => { state[k] = remote[k]; });
+
+      // Also sync window.state
+      keys.forEach(k => { window.state[k] = remote[k]; });
+
+      console.log('[_applyState] Applied:', state.depenses?.length,
+        'dépenses, categories:', state.categories?.length);
+
+      // Render everything
+      refreshSelects();
+      renderAll();
+      try { renderWishlist(); } catch(e) {}
+      try { renderFactures(); } catch(e) {}
+
+      console.log('[_applyState] Render complete ✅');
+    } catch(e) {
+      console.error('[_applyState] Error:', e);
     }
-  });
-  let state = _stateProxy;
+  };
+
+  window._getState = function() { return state; };
   const charts = {};
 
   function loadState() {
-    // Handled by Firebase onAuthStateChanged
-    // State is loaded from Firestore, not localStorage
-    return;
+    // No localStorage — Firebase handles everything
   }
   function buildDatabaseCsvText() {
     const lines = [];
@@ -3059,6 +3031,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderAll() {
+    window._renderAll = renderAll; // expose globally
     refreshSelects();
     const today = new Date().toISOString().slice(0, 10);
     if (!byId("add-date").value) byId("add-date").value = today;
@@ -3643,12 +3616,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   try {
     if (loaderStatus) loaderStatus.textContent = "Connexion en cours…";
-    // ✅ Empty state — Firebase will load real data after login
-    if (typeof defaultState === "function") {
-      const empty = defaultState();
-      Object.keys(window.state).forEach(k => delete window.state[k]);
-      Object.assign(window.state, empty);
-    }
+    // Start with empty state — Firebase will load real data
     renderAll();
   } catch(e) {
     console.error("FinTrack init error:", e);
