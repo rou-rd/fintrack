@@ -357,9 +357,467 @@ input[type=file]{display:none}
   .table-wrap{font-size:12px}
 }
 
+  /* ═══════════════════════════════════════════════════════════
+     FORM UX IMPROVEMENTS
+  ═══════════════════════════════════════════════════════════ */
+
+  /* Fields with icons */
+  .field-icon {
+    position: relative;
+  }
+  .field-icon .field-icon-el {
+    position: absolute;
+    left: 11px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .field-icon input,
+  .field-icon select {
+    padding-left: 34px !important;
+  }
+
+  /* Required field indicator */
+  .field.required label::after {
+    content: ' *';
+    color: var(--red);
+    font-size: 12px;
+  }
+
+  /* Field hint text */
+  .field-hint {
+    font-size: 11px;
+    color: var(--muted2);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Validation states */
+  .field.valid input,
+  .field.valid select {
+    border-color: var(--green) !important;
+  }
+  .field.error input,
+  .field.error select {
+    border-color: var(--red) !important;
+    animation: shake .3s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  /* Amount input — big and prominent */
+  .amount-field input {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+    text-align: right;
+    padding-right: 52px !important;
+  }
+  .amount-field {
+    position: relative;
+  }
+  .amount-currency {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted2);
+    pointer-events: none;
+  }
+
+  /* Form section divider */
+  .form-section {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 0 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  /* Quick select chips */
+  .quick-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .quick-chip {
+    padding: 5px 11px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid var(--border2);
+    background: var(--s2);
+    color: var(--muted2);
+    cursor: pointer;
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .quick-chip:hover,
+  .quick-chip.active {
+    border-color: var(--accent);
+    background: var(--accent-d);
+    color: var(--accent);
+  }
+
+  /* Improved panel title */
+  .panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+  .panel-subtitle {
+    font-size: 12px;
+    color: var(--muted2);
+    margin-top: -10px;
+    margin-bottom: 14px;
+  }
+
+  /* Progress steps for multi-step forms */
+  .form-steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+  }
+  .form-step {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    position: relative;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border2);
+    transition: all .2s;
+  }
+  .form-step.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .form-step.done {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
+  /* Btn submit — always full width on mobile */
+  @media (max-width: 768px) {
+    .btn-submit-main {
+      width: 100% !important;
+      padding: 14px !important;
+      font-size: 15px !important;
+    }
+  }
+
+
+  /* Onboarding steps */
+  .onb-step {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    background: var(--s1); border: 1px solid var(--border2);
+    cursor: pointer; transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .onb-step:hover, .onb-step:active { 
+    border-color: var(--accent); background: var(--accent-d);
+  }
+  .onb-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .onb-text { flex: 1; font-size: 13px; color: var(--text); font-weight: 500; }
+  .onb-arrow { color: var(--accent); font-weight: 700; }
+  .onb-step.done .onb-num { background: var(--green); }
+  .onb-step.done .onb-text { color: var(--muted2); text-decoration: line-through; }
+
+  /* dep-essential styling */
+  .dep-essential { margin-bottom: 4px; }
+  .dep-amount-row { display: flex; gap: 10px; align-items: flex-end; }
+
   /* ═══ AUTH GUARD ═══ */
   .app-hidden .main { display: none !important; }
   .app-hidden nav   { display: none !important; }
+
+  /* ═══════════════════════════════════════════════════════════
+     MOBILE-FIRST UI — Complete overhaul for phone/tablet
+  ═══════════════════════════════════════════════════════════ */
+
+  /* ── BOTTOM TAB BAR (mobile only) ─────────────────────── */
+  #mobile-tab-bar {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--s0);
+    border-top: 1px solid var(--border2);
+    z-index: 200;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #mobile-tab-bar .tab-items {
+    display: flex;
+    height: 60px;
+    align-items: center;
+    justify-content: space-around;
+  }
+  .mob-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    height: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 6px 2px;
+    border-radius: 0;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity .15s;
+  }
+  .mob-tab:active { opacity: .7; }
+  .mob-tab .tab-icon { font-size: 22px; line-height: 1; }
+  .mob-tab .tab-label {
+    font-size: 10px; font-weight: 600;
+    color: var(--muted2);
+    transition: color .15s;
+  }
+  .mob-tab.active .tab-label { color: var(--accent); }
+  .mob-tab .tab-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    position: absolute;
+    bottom: 6px;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .mob-tab.active .tab-dot { opacity: 1; }
+
+  /* FAB — Quick add button */
+  #mobile-fab {
+    display: none;
+    position: fixed;
+    bottom: 74px; right: 18px;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 26px;
+    font-weight: 300;
+    border: none;
+    cursor: pointer;
+    z-index: 201;
+    box-shadow: 0 4px 16px rgba(79,143,255,.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: transform .15s, box-shadow .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #mobile-fab:active {
+    transform: scale(.93);
+    box-shadow: 0 2px 8px rgba(79,143,255,.3);
+  }
+
+  /* ── RESPONSIVE BREAKPOINTS ────────────────────────────── */
+  /* Depense mobile cards */
+  .dep-cards-list { display: none; }
+  .dep-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 14px;
+    border-radius: 12px;
+    background: var(--s1);
+    border: 1px solid var(--border2);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dep-card:active { background: var(--s2); }
+  .dep-card-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+    background: var(--s2);
+  }
+  .dep-card-body { flex: 1; min-width: 0; }
+  .dep-card-cat {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .dep-card-sub {
+    font-size: 11px; color: var(--muted2);
+    margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .dep-card-amount {
+    font-size: 14px; font-weight: 700;
+    color: var(--red); flex-shrink: 0;
+    text-align: right;
+  }
+  .dep-card-date {
+    font-size: 10px; color: var(--muted);
+    margin-top: 2px; text-align: right;
+  }
+  .dep-card-swipe-hint {
+    font-size: 10px; color: var(--muted);
+    text-align: center; padding: 6px 0;
+  }
+
+  @media (max-width: 768px) {
+    /* Show bottom tab bar + FAB */
+    #mobile-tab-bar { display: block; }
+    #mobile-fab     { display: flex !important; }
+
+    /* Hide desktop sidebar */
+    .nav { display: none !important; }
+    #btn-hamburger { display: none !important; }
+
+    /* Switch table/cards on mobile */
+    .table-wrap table { display: none; }
+    .dep-cards-list   { display: block !important; }
+
+    /* Full-width main */
+    .main { margin-left: 0 !important; }
+
+    /* Topbar compact */
+    .topbar {
+      padding: 0 14px !important;
+      height: 52px !important;
+    }
+    .topbar-title { font-size: 16px !important; }
+    .topbar-desc  { display: none; }
+
+    /* Content padding — leave room for bottom bar */
+    .content {
+      padding: 12px 14px 80px !important;
+    }
+
+    /* KPI grid — 2 columns on phone */
+    .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+
+    /* KPI cards — bigger text */
+    .kpi-val { font-size: 15px !important; }
+    .kpi-label { font-size: 10px !important; }
+
+    /* Forms — single column */
+    .form-grid { grid-template-columns: 1fr !important; }
+    .filters { flex-direction: column !important; gap: 8px !important; }
+    .filters .field input,
+    .filters .field select { width: 100% !important; }
+
+    /* Tables → scroll horizontally */
+    .table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    th, td { padding: 10px 10px !important; font-size: 12px !important; }
+    .table-wrap table { min-width: 500px; }
+
+    /* Charts — full width */
+    .chart-grid, .chart-grid.cols3, .two-col {
+      grid-template-columns: 1fr !important;
+    }
+    .chart-wrap { height: 220px !important; }
+
+    /* Panels */
+    .panel { border-radius: 12px !important; padding: 14px !important; }
+
+    /* Buttons — bigger touch targets */
+    .btn { min-height: 40px !important; padding: 8px 16px !important; }
+    .btn-sm { min-height: 34px !important; }
+
+    /* Nav overlay for sidebar if open */
+    .nav-overlay { z-index: 150; }
+
+    /* Modals — full screen on mobile */
+    .modal-box {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      border-radius: 20px 20px 0 0 !important;
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      max-height: 90vh !important;
+      overflow-y: auto !important;
+    }
+    .modal-backdrop {
+      align-items: flex-end !important;
+    }
+
+    /* Add depense form — simplified on mobile */
+    .add-depense-panel .form-grid {
+      grid-template-columns: 1fr 1fr !important;
+    }
+    #add-montant { font-size: 20px !important; }
+
+    /* Dashboard welcome */
+    .dash-welcome { font-size: 18px !important; }
+
+    /* Wishlist cards — single column */
+    .wl-cards-grid { grid-template-columns: 1fr !important; }
+
+    /* Hide less important columns on mobile */
+    .hide-mobile { display: none !important; }
+
+    /* Section headers */
+    .section-title { font-size: 13px !important; }
+
+    /* Input focus — prevent zoom on iOS */
+    input, select, textarea {
+      font-size: 16px !important; /* prevents iOS zoom */
+    }
+    /* But keep small labels small */
+    .field label { font-size: 11px !important; }
+  }
+
+  @media (max-width: 400px) {
+    .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+    .content { padding: 10px 10px 80px !important; }
+  }
+
+  /* ── BETTER TOUCH INTERACTIONS ─────────────────────────── */
+  @media (hover: none) {
+    /* Remove hover states on touch devices */
+    .nav-btn:hover { background: transparent; }
+    .btn:hover { opacity: 1; }
+  }
+
+  /* ── iOS SAFE AREA ──────────────────────────────────────── */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    #mobile-tab-bar {
+      padding-bottom: env(safe-area-inset-bottom);
+      height: calc(60px + env(safe-area-inset-bottom));
+    }
+    #mobile-fab {
+      bottom: calc(74px + env(safe-area-inset-bottom));
+    }
+    @media (max-width: 768px) {
+      .content {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+      }
+    }
+  }
+
 </style>
 
   <!-- ═══ FIREBASE SDK ═══ -->
@@ -728,7 +1186,7 @@ input[type=file]{display:none}
     <div class="nav-section">Gestion</div>
     <button class="nav-btn" data-page="comptes"><span class="nav-icon">💳</span><span class="nav-label">Comptes</span></button>
     <button class="nav-btn" data-page="budgets"><span class="nav-icon">🎯</span><span class="nav-label">Budgets</span></button>
-    <button class="nav-btn" data-page="referentiels"><span class="nav-icon">👥</span><span class="nav-label">Référentiels</span></button>
+    <button class="nav-btn" data-page="referentiels"><span class="nav-icon">⚙️</span><span class="nav-label">Paramètres</span></button>
     <div class="nav-section">Données</div>
     <button class="nav-btn" data-page="fichiers"><span class="nav-icon">📁</span><span class="nav-label">Fichiers & Import</span></button>
     <div class="nav-section">Extra</div>
@@ -878,6 +1336,40 @@ input[type=file]{display:none}
 
     <!-- DASHBOARD -->
     <section id="page-dashboard" class="page active">
+      <!-- Onboarding — shown only when no data -->
+      <div id="onboarding-banner" style="display:none;
+        background:linear-gradient(135deg,var(--accent-d),var(--s2));
+        border:1.5px solid var(--accent);border-radius:16px;
+        padding:20px 22px;margin-bottom:18px">
+        <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+          <div style="font-size:36px">👋</div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">
+              Bienvenue sur FinTrack !
+            </div>
+            <div style="font-size:13px;color:var(--muted2);margin-bottom:14px;line-height:1.5">
+              Commencez en 3 étapes simples pour gérer vos finances.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div class="onb-step" id="onb-1" onclick="document.querySelector('[data-page=comptes]').click()">
+                <span class="onb-num">1</span>
+                <span class="onb-text">💳 Ajouter un compte <span style="color:var(--muted2)">(ex: Compte courant)</span></span>
+                <span class="onb-arrow">→</span>
+              </div>
+              <div class="onb-step" id="onb-2" onclick="document.querySelector('[data-page=referentiels]').click()">
+                <span class="onb-num">2</span>
+                <span class="onb-text">🏷️ Créer vos catégories <span style="color:var(--muted2)">(ex: Alimentation, Transport)</span></span>
+                <span class="onb-arrow">→</span>
+              </div>
+              <div class="onb-step" id="onb-3" onclick="document.querySelector('[data-page=depenses]').click()">
+                <span class="onb-num">3</span>
+                <span class="onb-text">💸 Ajouter votre première dépense</span>
+                <span class="onb-arrow">→</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div id="alerts-dashboard" class="alerts"></div>
       <div class="kpi-grid" id="dash-cards"></div>
       <div id="budget-indicators"></div>
@@ -891,16 +1383,76 @@ input[type=file]{display:none}
     <section id="page-depenses" class="page">
       <div class="panel">
         <div class="panel-title"><span class="icon">➕</span> Ajouter une dépense</div>
-        <p class="hint">Le montant est débité du compte sélectionné.</p>
-        <div class="form-grid">
-          <div class="field"><label>Date</label><input type="date" id="add-date" required/></div>
-          <div class="field"><label>Montant (TND)</label><input type="number" id="add-montant" min="0" step="0.001" placeholder="0.000" required/></div>
-          <div class="field"><label>Catégorie</label><select id="add-categorie"></select></div>
-          <div class="field"><label>Personne</label><select id="add-personne"></select></div>
-          <div class="field"><label>Compte débité</label><select id="add-compte"></select></div>
-          <div class="field"><label>Description</label><input type="text" id="add-desc" placeholder="Libellé"/></div>
-          <div class="field"><label>Moyen de paiement</label><input type="text" id="add-moyen" placeholder="Carte, virement…"/></div>
-          <div class="field"><label>Tags</label><div class="tag-input-wrap" id="add-tags-wrap"><input type="text" id="add-tags-input" placeholder="tag + Entrée"/></div></div>
+        <p class="panel-subtitle">Le montant sera débité du compte sélectionné</p>
+
+        <!-- ── ESSENTIAL FIELDS (always visible) ────────── -->
+        <div class="dep-essential">
+
+          <!-- Big amount input -->
+          <div class="dep-amount-row">
+            <div class="field amount-field required" style="flex:1">
+              <input type="number" id="add-montant" min="0" step="0.001"
+                placeholder="0.000" required autocomplete="off"
+                style="font-size:28px;font-weight:800;text-align:center;padding:14px 52px 14px 14px;height:62px"/>
+              <span class="amount-currency" style="font-size:15px;right:16px">TND</span>
+            </div>
+          </div>
+
+          <!-- Quick amounts -->
+          <div class="quick-chips" id="quick-amounts" style="justify-content:center;margin:8px 0 12px">
+            <button type="button" class="quick-chip" data-amount="5">5</button>
+            <button type="button" class="quick-chip" data-amount="10">10</button>
+            <button type="button" class="quick-chip" data-amount="20">20</button>
+            <button type="button" class="quick-chip" data-amount="50">50</button>
+            <button type="button" class="quick-chip" data-amount="100">100</button>
+            <button type="button" class="quick-chip" data-amount="200">200</button>
+          </div>
+
+          <!-- 3 essential fields in a row -->
+          <div class="form-grid" style="grid-template-columns:repeat(3,1fr);gap:10px">
+            <div class="field required">
+              <label>📅 Date</label>
+              <input type="date" id="add-date" required/>
+            </div>
+            <div class="field required">
+              <label>🏷️ Catégorie</label>
+              <select id="add-categorie"></select>
+            </div>
+            <div class="field required">
+              <label>💳 Compte</label>
+              <select id="add-compte"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ADVANCED FIELDS (collapsible) ──────────── -->
+        <button type="button" id="btn-dep-advanced" onclick="toggleDepAdvanced()" style="
+          display:flex;align-items:center;gap:6px;
+          background:transparent;border:none;cursor:pointer;
+          font-size:12px;color:var(--muted2);font-family:inherit;
+          padding:6px 0;margin:4px 0 0;width:100%;
+        ">
+          <span id="dep-advanced-icon">▶</span>
+          <span>Options supplémentaires (personne, description, tags…)</span>
+        </button>
+
+        <div id="dep-advanced-fields" style="display:none">
+          <div class="form-grid" style="margin-top:10px">
+            <div class="field">
+              <label>👤 Personne</label>
+              <select id="add-personne"></select>
+            </div>
+            <div class="field">
+              <label>📝 Description</label>
+              <input type="text" id="add-desc" placeholder="Ex: Restaurant midi…"/>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label>💳 Moyen de paiement</label>
+              <input type="text" id="add-moyen" placeholder="Carte, espèces, virement…"/>
+            </div>
+            <div class="field"><label>🏷️ Tags</label><div class="tag-input-wrap" id="add-tags-wrap"><input type="text" id="add-tags-input" placeholder="tag + Entrée"/></div></div>
           <div class="field-check"><input type="checkbox" id="add-recurrent"/><label for="add-recurrent" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--muted2)">Récurrente mensuelle</label></div>
         </div>
         <button class="btn btn-primary" id="btn-add-depense">Ajouter la dépense</button>
@@ -936,6 +1488,8 @@ input[type=file]{display:none}
             <tbody id="tbody-depenses"></tbody>
           </table>
         </div>
+        <!-- Mobile card view — shown instead of table on small screens -->
+        <div id="dep-cards-mobile" class="dep-cards-list"></div>
         <div class="pag-bar" id="dep-pagination-nav"></div>
         <div style="font-size:11.5px;color:var(--muted);text-align:right;margin-top:4px" id="dep-page-info"></div>
       </div>
@@ -990,13 +1544,32 @@ input[type=file]{display:none}
             <tbody id="tbody-comptes"></tbody></table>
           </div>
           <hr class="sep"/>
-          <div class="panel-title" style="margin-bottom:12px"><span class="icon">➕</span> Nouveau compte</div>
+          <div class="panel-title" style="margin-bottom:4px"><span class="icon">➕</span> Nouveau compte</div>
+          <p class="panel-subtitle">Choisissez le type selon l'usage : Courant (quotidien), Épargne (long terme), Espèces</p>
           <div class="form-grid" style="max-width:600px">
-            <div class="field"><label>Nom</label><input type="text" id="new-compte-nom" placeholder="ex. Livret A"/></div>
-            <div class="field"><label>Type</label><select id="new-compte-type"><option value="courant">Courant</option><option value="epargne">Épargne</option><option value="especes">Espèces</option></select></div>
-            <div class="field"><label>Solde initial (TND)</label><input type="number" id="new-compte-solde" min="0" step="0.001" value="0"/></div>
+            <div class="field required">
+              <label>Nom du compte</label>
+              <input type="text" id="new-compte-nom" placeholder="ex: Banque principale, Livret A…"/>
+            </div>
+            <div class="field required">
+              <label>Type de compte</label>
+              <select id="new-compte-type">
+                <option value="courant">💳 Courant — dépenses quotidiennes</option>
+                <option value="epargne">🏦 Épargne — économies long terme</option>
+                <option value="especes">💵 Espèces — argent liquide</option>
+              </select>
+              <div class="field-hint">💡 Choisissez selon où vous gardez cet argent</div>
+            </div>
+            <div class="field">
+              <label>Solde initial (TND)</label>
+              <div class="field-icon">
+                <span class="field-icon-el">💰</span>
+                <input type="number" id="new-compte-solde" min="0" step="0.001" value="0"/>
+              </div>
+              <div class="field-hint">💡 Montant actuel dans ce compte</div>
+            </div>
           </div>
-          <button class="btn btn-primary" id="btn-add-compte">Ajouter le compte</button>
+          <button class="btn btn-primary btn-submit-main" id="btn-add-compte">Ajouter le compte</button>
         </div>
         <div class="panel">
           <div class="panel-title"><span class="icon">🔄</span> Opérations manuelles</div>
@@ -1125,12 +1698,21 @@ input[type=file]{display:none}
         <div class="panel-title"><span class="icon">🌍</span> Budget mensuel global</div>
         <p class="hint">Compare les dépenses du mois civil en cours à ce plafond. Laissez 0 pour désactiver.</p>
         <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
-          <div class="field" style="max-width:200px"><label>Plafond (TND / mois)</label><input type="number" id="budget-global" min="0" step="1"/></div>
-          <button class="btn btn-primary" id="btn-save-budget-global">Appliquer</button>
+          <div class="field" style="max-width:280px">
+              <label>Budget mensuel maximum (TND)</label>
+              <div class="field-icon">
+                <span class="field-icon-el">🎯</span>
+                <input type="number" id="budget-global" min="0" step="1" placeholder="ex: 1500"/>
+              </div>
+              <div class="field-hint" id="budget-global-hint">💡 Montant total que vous ne voulez pas dépasser par mois</div>
+            </div>
+          <button class="btn btn-primary" id="btn-save-budget-global">💾 Appliquer</button>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-title"><span class="icon">🎯</span> Budgets par catégorie (mois en cours)</div>
+        <div class="panel-title"><span class="icon">🎯</span> Budgets par catégorie
+          <span style="font-size:11px;font-weight:400;color:var(--muted2);margin-left:8px">Fixez un plafond par catégorie pour ce mois</span>
+        </div>
         <p class="hint">Laissez vide pour ne pas plafonner une catégorie.</p>
         <div id="budgets-par-cat"></div>
       </div>
@@ -1556,6 +2138,174 @@ input[type=file]{display:none}
     };
     console.log("🔧 Debug tools: checkFirebase(), forceSave(), forceLoad()");
   </script>
+
+  <!-- ═══ MOBILE BOTTOM TAB BAR ═══ -->
+  <div id="mobile-tab-bar">
+    <div class="tab-items">
+      <button class="mob-tab active" data-mob-page="dashboard">
+        <span class="tab-icon">🏠</span>
+        <span class="tab-label">Accueil</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" data-mob-page="depenses">
+        <span class="tab-icon">💸</span>
+        <span class="tab-label">Dépenses</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" data-mob-page="comptes">
+        <span class="tab-icon">💳</span>
+        <span class="tab-label">Comptes</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" data-mob-page="budgets">
+        <span class="tab-icon">🎯</span>
+        <span class="tab-label">Budgets</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" id="mob-tab-more">
+        <span class="tab-icon">⋯</span>
+        <span class="tab-label">Plus</span>
+        <span class="tab-dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- FAB — Quick add expense -->
+  <button id="mobile-fab" aria-label="Ajouter une dépense">+</button>
+
+  <!-- MOBILE MORE SHEET -->
+  <div id="mob-more-sheet" style="
+    display:none; position:fixed; inset:0; z-index:300;
+    background:rgba(0,0,0,.6); backdrop-filter:blur(4px);
+  ">
+    <div style="
+      position:absolute; bottom:0; left:0; right:0;
+      background:var(--s1); border-radius:20px 20px 0 0;
+      padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+      border-top:1px solid var(--border2);
+    ">
+      <div style="width:36px;height:4px;background:var(--border2);border-radius:99px;margin:0 auto 20px"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <button class="mob-more-btn" data-mob-page="analyses">
+          <span style="font-size:24px">📊</span>
+          <span>Analyses</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="wishlist">
+          <span style="font-size:24px">🛍️</span>
+          <span>Wishlist</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="factures">
+          <span style="font-size:24px">📄</span>
+          <span>Factures</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="saving-planner">
+          <span style="font-size:24px">💰</span>
+          <span>Épargne</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="referentiels">
+          <span style="font-size:24px">👥</span>
+          <span>Référentiels</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="fichiers">
+          <span style="font-size:24px">📁</span>
+          <span>Fichiers</span>
+        </button>
+      </div>
+      <button onclick="closeMobMore()" style="
+        width:100%; margin-top:16px; padding:14px;
+        background:var(--s2); border:1px solid var(--border2);
+        border-radius:12px; color:var(--text);
+        font-size:14px; font-weight:600; cursor:pointer;
+      ">Fermer</button>
+    </div>
+  </div>
+
+  <style>
+    .mob-more-btn {
+      display:flex; flex-direction:column; align-items:center;
+      gap:6px; padding:14px 8px; border-radius:14px;
+      background:var(--s2); border:1px solid var(--border2);
+      cursor:pointer; font-size:12px; font-weight:600;
+      color:var(--text); transition:background .15s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mob-more-btn:active { background:var(--s3); }
+  </style>
+
+  <script>
+    // ── MOBILE TAB BAR LOGIC ───────────────────────────────────
+    (function() {
+      // Sync tab bar with page navigation
+      function syncTabBar(page) {
+        document.querySelectorAll('.mob-tab').forEach(t => {
+          t.classList.toggle('active', t.dataset.mobPage === page);
+        });
+      }
+
+      // Wire tab buttons
+      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = btn.dataset.mobPage;
+          // Trigger existing nav system
+          const navBtn = document.querySelector(`[data-page="${page}"]`);
+          if (navBtn) navBtn.click();
+          syncTabBar(page);
+        });
+      });
+
+      // More button
+      document.getElementById('mob-tab-more').addEventListener('click', () => {
+        document.getElementById('mob-more-sheet').style.display = 'block';
+      });
+
+      // Close more sheet on backdrop click
+      document.getElementById('mob-more-sheet').addEventListener('click', function(e) {
+        if (e.target === this) closeMobMore();
+      });
+
+      // More sheet buttons
+      document.querySelectorAll('.mob-more-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = btn.dataset.mobPage;
+          const navBtn = document.querySelector(`[data-page="${page}"]`);
+          if (navBtn) navBtn.click();
+          closeMobMore();
+          syncTabBar(page);
+        });
+      });
+
+      // FAB — scroll to add depense form
+      document.getElementById('mobile-fab').addEventListener('click', () => {
+        // Navigate to depenses page first
+        const depBtn = document.querySelector('[data-page="depenses"]');
+        if (depBtn) depBtn.click();
+        syncTabBar('depenses');
+        // Focus on amount input
+        setTimeout(() => {
+          const amtInput = document.getElementById('add-montant');
+          if (amtInput) {
+            amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            amtInput.focus();
+          }
+        }, 200);
+      });
+
+      // Hook into existing page nav to sync tab bar
+      const observer = new MutationObserver(() => {
+        const active = document.querySelector('.page.active');
+        if (active) {
+          const pageId = active.id.replace('page-', '');
+          syncTabBar(pageId);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    })();
+
+    function closeMobMore() {
+      document.getElementById('mob-more-sheet').style.display = 'none';
+    }
+  </script>
+
 </body>
 
 </html>
@@ -2249,8 +2999,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderDashboard() {
     renderAlerts("alerts-dashboard");
-    const now = new Date();
 
+    // Show/hide onboarding
+    const onb = byId('onboarding-banner');
+    if (onb) {
+      const isEmpty = !state.comptes?.length || !state.depenses?.length;
+      onb.style.display = isEmpty ? 'block' : 'none';
+      // Update step completion
+      if (state.comptes?.length) {
+        const s1 = byId('onb-1');
+        if (s1) s1.classList.add('done');
+      }
+      if (state.categories?.length) {
+        const s2 = byId('onb-2');
+        if (s2) s2.classList.add('done');
+      }
+      if (state.depenses?.length) {
+        const s3 = byId('onb-3');
+        if (s3) s3.classList.add('done');
+        if (onb) onb.style.display = 'none'; // hide when all done
+      }
+    }
+
+    const now = new Date();
     // Use most recent month that has data (not necessarily current month)
     let mk = currentMonthKey();
     if (state.depenses && state.depenses.length > 0) {
@@ -2640,6 +3411,51 @@ document.addEventListener("DOMContentLoaded", () => {
         </td>
       </tr>`;
     }).join("");
+
+    // ── MOBILE CARDS (replaces table on phone) ──────────────────
+    if (mobileCards) {
+      const catMap = {};
+      state.categories.forEach(c => { catMap[c.id] = c.nom; });
+      const catEmojis = {
+        'alimentation':'🛒','transport':'🚗','logement':'🏠','loisir':'🎮',
+        'santé':'💊','vêtement':'👗','restaurant':'🍽️','café':'☕',
+        'essence':'⛽','famille':'👨‍👩‍👧','sport':'⚽','autre':'💰'
+      };
+      function getCatEmoji(nom) {
+        if (!nom) return '💰';
+        const n = nom.toLowerCase();
+        for (const [k,v] of Object.entries(catEmojis)) {
+          if (n.includes(k)) return v;
+        }
+        return '💰';
+      }
+      mobileCards.innerHTML = rows.map(d => {
+        const catNom = catMap[d.categorieId] || '—';
+        const emoji  = getCatEmoji(catNom);
+        const date   = new Date(d.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+        const desc   = d.description || catNom;
+        return `<div class="dep-card" data-card-id="${d.id}">
+          <div class="dep-card-icon">${emoji}</div>
+          <div class="dep-card-body">
+            <div class="dep-card-cat">${escapeHtml(desc)}</div>
+            <div class="dep-card-sub">${escapeHtml(catNom)}${d.recurrent ? ' · 🔁' : ''}</div>
+          </div>
+          <div>
+            <div class="dep-card-amount">−${d.montant.toFixed(3)}</div>
+            <div class="dep-card-date">${date}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Wire card taps → open edit modal
+      mobileCards.querySelectorAll('.dep-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const id = card.dataset.cardId;
+          const editBtn = tb.querySelector(`[data-edit="${id}"]`);
+          if (editBtn) editBtn.click();
+        });
+      });
+    }
 
     tb.querySelectorAll("[data-del]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -3436,6 +4252,112 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------- init ---------- */
   // nav buttons bound by wrapper above
 
+  // ── TOGGLE ADVANCED DEPENSE FIELDS ──────────────────────────────────────
+  window.toggleDepAdvanced = function() {
+    const fields = document.getElementById('dep-advanced-fields');
+    const icon   = document.getElementById('dep-advanced-icon');
+    const btn    = document.getElementById('btn-dep-advanced');
+    if (!fields) return;
+    const open = fields.style.display === 'none';
+    fields.style.display = open ? '' : 'none';
+    if (icon) icon.textContent = open ? '▼' : '▶';
+    if (btn)  btn.style.color  = open ? 'var(--accent)' : 'var(--muted2)';
+  };
+
+  // ── SMART FORM UX ─────────────────────────────────────────────────────────
+
+  // 1. Auto-set today's date on add-depense form
+  (function() {
+    const dateInput = byId("add-date");
+    if (dateInput && !dateInput.value) {
+      dateInput.value = new Date().toISOString().slice(0,10);
+    }
+  })();
+
+  // 2. Auto-focus montant when depenses page opens
+  document.querySelectorAll('[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.page === 'depenses') {
+        setTimeout(() => {
+          const m = byId('add-montant');
+          if (m) m.focus();
+        }, 150);
+      }
+    });
+  });
+
+  // 3. Quick amount chips (common amounts)
+  const addMontantInput = byId('add-montant');
+  if (addMontantInput) {
+    // Add quick chips after the amount field
+    const quickAmounts = [5, 10, 20, 50, 100];
+    const chipsHtml = `<div class="quick-chips" id="quick-amounts">
+      ${quickAmounts.map(a => `<button type="button" class="quick-chip" data-amount="${a}">${a} DT</button>`).join('')}
+    </div>`;
+    const amountField = addMontantInput.closest('.field');
+    if (amountField) {
+      amountField.insertAdjacentHTML('beforeend', chipsHtml);
+      amountField.querySelectorAll('.quick-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          addMontantInput.value = chip.dataset.amount;
+          // Visual feedback
+          amountField.querySelectorAll('.quick-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          setTimeout(() => chip.classList.remove('active'), 600);
+        });
+      });
+    }
+  }
+
+  // 4. Field validation feedback
+  function validateField(input) {
+    const field = input.closest('.field');
+    if (!field) return;
+    if (input.required && !input.value) {
+      field.classList.add('error');
+      field.classList.remove('valid');
+    } else if (input.value) {
+      field.classList.remove('error');
+      field.classList.add('valid');
+    } else {
+      field.classList.remove('error','valid');
+    }
+  }
+
+  // Add validation on blur for required fields
+  document.querySelectorAll('.field.required input, .field.required select').forEach(inp => {
+    inp.addEventListener('blur', () => validateField(inp));
+    inp.addEventListener('input', () => {
+      if (inp.closest('.field')?.classList.contains('error')) {
+        validateField(inp);
+      }
+    });
+  });
+
+  // 5. Improve budget form with inline feedback
+  const budgetGlobalInput = byId('budget-global');
+  if (budgetGlobalInput) {
+    budgetGlobalInput.addEventListener('input', function() {
+      const val = parseFloat(this.value);
+      const totalMois = state.depenses
+        .filter(d => d.date && d.date.startsWith(currentMonthKey()))
+        .reduce((s,d) => s + d.montant, 0);
+      let hint = this.parentElement?.querySelector('.field-hint');
+      if (!hint) {
+        hint = document.createElement('div');
+        hint.className = 'field-hint';
+        this.parentElement?.appendChild(hint);
+      }
+      if (val > 0 && totalMois > 0) {
+        const pct = Math.round(totalMois / val * 100);
+        hint.innerHTML = `📊 Ce mois : <strong>${pct}%</strong> utilisé (${totalMois.toFixed(3)} / ${val} DT)`;
+        hint.style.color = pct > 100 ? 'var(--red)' : pct > 80 ? 'var(--amber)' : 'var(--green)';
+      } else {
+        hint.textContent = '';
+      }
+    });
+  }
+
   byId("btn-save-local").addEventListener("click", async () => {
     if (!window._fbUser) {
       const btn   = byId("btn-save-local");
@@ -3482,9 +4404,31 @@ document.addEventListener("DOMContentLoaded", () => {
       moyen: byId("add-moyen").value.trim(),
     });
     saveState();
+    // Success feedback
+    const btn = byId("btn-add-depense");
+    const origText = btn.textContent;
+    btn.textContent = "✅ Ajouté !";
+    btn.style.background = "var(--green)";
+    btn.style.borderColor = "var(--green)";
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.style.background = "";
+      btn.style.borderColor = "";
+    }, 1500);
+
+    // Reset form
     byId("add-montant").value = "";
     byId("add-desc").value = "";
-    saveState();
+    byId("add-moyen").value = "";
+    // Reset date to today
+    byId("add-date").value = new Date().toISOString().slice(0,10);
+    // Remove validation states
+    document.querySelectorAll('.field.valid,.field.error').forEach(f => {
+      f.classList.remove('valid','error');
+    });
+    // Refocus montant for quick re-entry
+    setTimeout(() => byId("add-montant").focus(), 100);
+
     renderAll();
   });
 
@@ -5894,5 +6838,173 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     console.log("🔧 Debug tools: checkFirebase(), forceSave(), forceLoad()");
   </script>
+
+  <!-- ═══ MOBILE BOTTOM TAB BAR ═══ -->
+  <div id="mobile-tab-bar">
+    <div class="tab-items">
+      <button class="mob-tab active" data-mob-page="dashboard">
+        <span class="tab-icon">🏠</span>
+        <span class="tab-label">Accueil</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" data-mob-page="depenses">
+        <span class="tab-icon">💸</span>
+        <span class="tab-label">Dépenses</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" data-mob-page="comptes">
+        <span class="tab-icon">💳</span>
+        <span class="tab-label">Comptes</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" data-mob-page="budgets">
+        <span class="tab-icon">🎯</span>
+        <span class="tab-label">Budgets</span>
+        <span class="tab-dot"></span>
+      </button>
+      <button class="mob-tab" id="mob-tab-more">
+        <span class="tab-icon">⋯</span>
+        <span class="tab-label">Plus</span>
+        <span class="tab-dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- FAB — Quick add expense -->
+  <button id="mobile-fab" aria-label="Ajouter une dépense">+</button>
+
+  <!-- MOBILE MORE SHEET -->
+  <div id="mob-more-sheet" style="
+    display:none; position:fixed; inset:0; z-index:300;
+    background:rgba(0,0,0,.6); backdrop-filter:blur(4px);
+  ">
+    <div style="
+      position:absolute; bottom:0; left:0; right:0;
+      background:var(--s1); border-radius:20px 20px 0 0;
+      padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+      border-top:1px solid var(--border2);
+    ">
+      <div style="width:36px;height:4px;background:var(--border2);border-radius:99px;margin:0 auto 20px"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <button class="mob-more-btn" data-mob-page="analyses">
+          <span style="font-size:24px">📊</span>
+          <span>Analyses</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="wishlist">
+          <span style="font-size:24px">🛍️</span>
+          <span>Wishlist</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="factures">
+          <span style="font-size:24px">📄</span>
+          <span>Factures</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="saving-planner">
+          <span style="font-size:24px">💰</span>
+          <span>Épargne</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="referentiels">
+          <span style="font-size:24px">👥</span>
+          <span>Référentiels</span>
+        </button>
+        <button class="mob-more-btn" data-mob-page="fichiers">
+          <span style="font-size:24px">📁</span>
+          <span>Fichiers</span>
+        </button>
+      </div>
+      <button onclick="closeMobMore()" style="
+        width:100%; margin-top:16px; padding:14px;
+        background:var(--s2); border:1px solid var(--border2);
+        border-radius:12px; color:var(--text);
+        font-size:14px; font-weight:600; cursor:pointer;
+      ">Fermer</button>
+    </div>
+  </div>
+
+  <style>
+    .mob-more-btn {
+      display:flex; flex-direction:column; align-items:center;
+      gap:6px; padding:14px 8px; border-radius:14px;
+      background:var(--s2); border:1px solid var(--border2);
+      cursor:pointer; font-size:12px; font-weight:600;
+      color:var(--text); transition:background .15s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mob-more-btn:active { background:var(--s3); }
+  </style>
+
+  <script>
+    // ── MOBILE TAB BAR LOGIC ───────────────────────────────────
+    (function() {
+      // Sync tab bar with page navigation
+      function syncTabBar(page) {
+        document.querySelectorAll('.mob-tab').forEach(t => {
+          t.classList.toggle('active', t.dataset.mobPage === page);
+        });
+      }
+
+      // Wire tab buttons
+      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = btn.dataset.mobPage;
+          // Trigger existing nav system
+          const navBtn = document.querySelector(`[data-page="${page}"]`);
+          if (navBtn) navBtn.click();
+          syncTabBar(page);
+        });
+      });
+
+      // More button
+      document.getElementById('mob-tab-more').addEventListener('click', () => {
+        document.getElementById('mob-more-sheet').style.display = 'block';
+      });
+
+      // Close more sheet on backdrop click
+      document.getElementById('mob-more-sheet').addEventListener('click', function(e) {
+        if (e.target === this) closeMobMore();
+      });
+
+      // More sheet buttons
+      document.querySelectorAll('.mob-more-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = btn.dataset.mobPage;
+          const navBtn = document.querySelector(`[data-page="${page}"]`);
+          if (navBtn) navBtn.click();
+          closeMobMore();
+          syncTabBar(page);
+        });
+      });
+
+      // FAB — scroll to add depense form
+      document.getElementById('mobile-fab').addEventListener('click', () => {
+        // Navigate to depenses page first
+        const depBtn = document.querySelector('[data-page="depenses"]');
+        if (depBtn) depBtn.click();
+        syncTabBar('depenses');
+        // Focus on amount input
+        setTimeout(() => {
+          const amtInput = document.getElementById('add-montant');
+          if (amtInput) {
+            amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            amtInput.focus();
+          }
+        }, 200);
+      });
+
+      // Hook into existing page nav to sync tab bar
+      const observer = new MutationObserver(() => {
+        const active = document.querySelector('.page.active');
+        if (active) {
+          const pageId = active.id.replace('page-', '');
+          syncTabBar(pageId);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    })();
+
+    function closeMobMore() {
+      document.getElementById('mob-more-sheet').style.display = 'none';
+    }
+  </script>
+
 </body>
 </html>
