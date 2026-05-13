@@ -365,8 +365,8 @@ input[type=file]{display:none}
   <!-- ═══ FIREBASE SDK ═══ -->
   <script type="module">
   // ══════════════════════════════════════════════════════════════
-  //  FINTRACK — 100% FIREBASE (plus de localStorage)
-  //  Toutes les données dans Firestore
+  //  FINTRACK — FIREBASE OPTIMISÉ
+  //  Minimise les lectures/écritures Firebase
   // ══════════════════════════════════════════════════════════════
   import { initializeApp }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -374,9 +374,10 @@ input[type=file]{display:none}
            signInWithPopup, signInWithRedirect, getRedirectResult,
            signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc, onSnapshot }
+  import { getFirestore, doc, setDoc, getDoc }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+  // ── CONFIG ────────────────────────────────────────────────────
   const firebaseConfig = {
     apiKey:            "AIzaSyCrYOyadkNjuX3dSoX49ExSDzFuURd5NNM",
     authDomain:        "fintrack-7965e.firebaseapp.com",
@@ -390,76 +391,36 @@ input[type=file]{display:none}
   const auth = getAuth(app);
   const db   = getFirestore(app);
 
-  let _unsubscribe = null;
-  let _lastSave    = 0;
-  let _saving      = false;
+  // ── STATE ─────────────────────────────────────────────────────
   let _currentUser = null;
+  let _saving      = false;
+  let _lastSave    = 0;
+  let _lastHash    = '';      // Hash of last saved state
+  let _saveTimer   = null;   // Debounce timer
+  let _pendingSave = false;  // Has unsaved changes?
 
   const ui = id => document.getElementById(id);
 
-  // ── SPLASH / LOADING SCREEN ──────────────────────────────────
-  function showSplash(msg) {
-    let el = ui('fb-splash');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'fb-splash';
-      el.style.cssText = `
-        position:fixed;inset:0;z-index:99999;
-        background:var(--bg,#0b0f1c);
-        display:flex;flex-direction:column;
-        align-items:center;justify-content:center;gap:16px;
-        transition:opacity .3s;
-      `;
-      el.innerHTML = `
-        <div style="width:64px;height:64px;border-radius:16px;
-          background:linear-gradient(135deg,#1a3a8f,#3d72d8);
-          display:flex;align-items:center;justify-content:center;
-          font-size:24px;font-weight:800;color:white;letter-spacing:-1px">FT</div>
-        <div style="font-size:20px;font-weight:700;color:var(--text,#e4eaf6)">FinTrack</div>
-        <div id="fb-splash-msg" style="font-size:13px;color:var(--muted2,#7080a0)"></div>
-        <div style="width:28px;height:28px">
-          <svg viewBox="0 0 28 28" fill="none">
-            <circle cx="14" cy="14" r="11" stroke="var(--border2,#1e2640)" stroke-width="2.5"/>
-            <path d="M14 3 A11 11 0 0 1 25 14" stroke="#3d72d8" stroke-width="2.5" stroke-linecap="round">
-              <animateTransform attributeName="transform" type="rotate"
-                from="0 14 14" to="360 14 14" dur="0.8s" repeatCount="indefinite"/>
-            </path>
-          </svg>
-        </div>
-      `;
-      document.body.appendChild(el);
-    }
-    const m = ui('fb-splash-msg');
-    if (m) m.textContent = msg || '';
-    el.style.opacity = '1';
-    el.style.display = 'flex';
+  // ── HASH FUNCTION (fast, lightweight) ─────────────────────────
+  // Only save to Firebase when data actually changes
+  function hashState() {
+    try {
+      const s = window.state;
+      // Quick hash based on key counts and last item
+      const dep = s.depenses?.length || 0;
+      const cpt = s.comptes?.length  || 0;
+      const cat = s.categories?.length || 0;
+      const wl  = s.wishlist?.length || 0;
+      const fac = s.factures?.length || 0;
+      const bud = s.budgetMensuelGlobal || 0;
+      const lastDep = s.depenses?.[s.depenses.length-1]?.id || '';
+      return `${dep}-${cpt}-${cat}-${wl}-${fac}-${bud}-${lastDep}`;
+    } catch(e) { return Date.now().toString(); }
   }
 
-  function hideSplash() {
-    const el = ui('fb-splash');
-    if (!el) return;
-    el.style.opacity = '0';
-    setTimeout(() => { el.style.display = 'none'; }, 350);
-  }
-
-  // ── SHOW LOGIN PAGE ──────────────────────────────────────────
-  function showLoginPage() {
-    document.body.classList.add('app-hidden');
-    // Reuse the early login page created in <head>
-    const el = ui('fb-login-page');
-    if (el) el.style.display = 'flex';
-  }
-
-  function hideLoginPage() {
-    document.body.classList.remove('app-hidden');
-    // Hide login page
-    const el = ui('fb-login-page');
-    if (el) el.style.display = 'none';
-  }
-
-  // ── TOPBAR AUTH UI ───────────────────────────────────────────
+  // ── UI HELPERS ────────────────────────────────────────────────
   function setLoggedIn(user) {
-    const loginBtn = ui('fb-login-btn');
+    const login    = ui('fb-login-btn');
     const block    = ui('fb-user-block');
     const photo    = ui('fb-user-photo');
     const initials = ui('fb-initials');
@@ -468,7 +429,6 @@ input[type=file]{display:none}
     const sync     = ui('fb-menu-sync');
 
     const initial = (user.displayName || user.email || '?').charAt(0).toUpperCase();
-
     if (photo) {
       if (user.photoURL) {
         photo.src = user.photoURL;
@@ -479,150 +439,132 @@ input[type=file]{display:none}
         if (initials) { initials.textContent = initial; initials.style.display = 'flex'; }
       }
     }
-
     const displayName = user.displayName || user.email;
     if (name)     name.textContent     = displayName;
     if (menuName) menuName.textContent = displayName;
     if (sync)     sync.textContent     = '☁️ Connecté';
-
-    if (loginBtn) loginBtn.style.display = 'none';
-    if (block)    block.style.display    = 'flex';
+    if (login)    login.style.display  = 'none';
+    if (block)    block.style.display  = 'flex';
   }
 
   function setLoggedOut() {
-    const loginBtn = ui('fb-login-btn');
-    const block    = ui('fb-user-block');
-    const dd       = ui('fb-dropdown');
-
-    if (loginBtn) loginBtn.style.display = 'flex';
-    if (block)    block.style.display    = 'none';
-    if (dd)       dd.classList.remove('show');
+    const login = ui('fb-login-btn');
+    const block = ui('fb-user-block');
+    const dd    = ui('fb-dropdown');
+    if (login) login.style.display = 'flex';
+    if (block) block.style.display = 'none';
+    if (dd)    dd.classList.remove('show');
   }
 
   function setSyncStatus(msg, revertMs = 0) {
-    const el = ui('fb-menu-sync');
-    if (!el) return;
-    el.textContent = msg;
-    if (revertMs > 0) setTimeout(() => { el.textContent = '☁️ Connecté'; }, revertMs);
+    const el   = ui('fb-menu-sync');
+    const ind  = ui('autosave-indicator');
+    const txt  = ui('autosave-text');
+    const dot  = ui('autosave-dot');
+
+    if (el) el.textContent = msg;
+
+    // Topbar indicator
+    if (ind && _currentUser) {
+      if (msg.includes('⏳') || msg.includes('🔄')) {
+        ind.style.display = 'flex';
+        if (dot) dot.style.background = '#f6a623';
+        if (txt) txt.textContent = 'Sauvegarde...';
+      } else if (msg.includes('✅') || msg.includes('Sauvegardé')) {
+        ind.style.display = 'flex';
+        if (dot) dot.style.background = 'var(--green,#1d9e75)';
+        if (txt) txt.textContent = 'Sauvegardé';
+        setTimeout(() => { if (ind) ind.style.display = 'none'; }, 2000);
+      } else {
+        if (ind) ind.style.display = 'none';
+      }
+    }
+
+    if (revertMs > 0) setTimeout(() => {
+      if (el) el.textContent = '☁️ Connecté';
+    }, revertMs);
   }
 
-  // ── LOAD FROM FIRESTORE ──────────────────────────────────────
+  // ── LOAD FROM FIRESTORE (1 read per login) ────────────────────
   async function loadData(user) {
-    if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
-    const syncEl = document.getElementById('fb-menu-sync');
-    if (syncEl) syncEl.textContent = '⏳ Chargement...';
-
+    setSyncStatus('⏳ Chargement...');
     try {
       const snap = await getDoc(doc(db, 'users', user.uid));
-
       if (snap.exists()) {
-        const data = snap.data();
+        const data   = snap.data();
         const remote = data.state;
-
         if (remote && remote.version === 2) {
-          // Valid state (even if empty after delete-all)
-          console.log('[Firebase] Got data:', remote.depenses?.length || 0, 'dépenses');
           remote.version = 2;
           _lastSave = data.updatedAt || 0;
-
+          _lastHash = hashState(); // Set hash AFTER applying
           if (typeof window._applyState === 'function') {
             window._applyState(remote);
           }
+          _lastHash = hashState(); // Update hash to match loaded state
           const count = remote.depenses?.length || 0;
-          setSyncStatus(count > 0 ? '☁️ ' + count + ' dépenses' : '☁️ Connecté', 3000);
-
+          setSyncStatus(count > 0 ? `☁️ ${count} dépenses` : '☁️ Connecté', 3000);
         } else if (remote && Array.isArray(remote.depenses)) {
-          // State without version field — still valid
           remote.version = 2;
           _lastSave = data.updatedAt || 0;
           if (typeof window._applyState === 'function') {
             window._applyState(remote);
           }
+          _lastHash = hashState();
           setSyncStatus('☁️ Connecté', 2000);
-
         } else {
-          console.log('[Firebase] No valid state found');
           setSyncStatus('☁️ Connecté');
         }
       } else {
-        console.log('[Firebase] New user — no data yet');
         setSyncStatus('☁️ Connecté');
       }
     } catch(e) {
       console.error('[Firebase] Load error:', e);
-      setSyncStatus('⚠️ Erreur: ' + e.message);
+      setSyncStatus('⚠️ Erreur chargement');
     }
   }
 
-  // ── SAVE TO FIRESTORE ────────────────────────────────────────
+  // ── SAVE TO FIRESTORE (debounced + hash check) ─────────────────
   async function saveData(user) {
     if (!user || _saving) return;
+
+    // ✅ HASH CHECK: skip if nothing changed
+    const currentHash = hashState();
+    if (currentHash === _lastHash && !window._allowEmptySave) {
+      setSyncStatus('☁️ Connecté'); // already up to date
+      return;
+    }
+
+    const depCount = window.state?.depenses?.length || 0;
+    const cptCount = window.state?.comptes?.length  || 0;
+
+    if (depCount === 0 && cptCount === 0 && !window._allowEmptySave) {
+      setSyncStatus('⚠️ State vide');
+      return;
+    }
+    window._allowEmptySave = false;
+
     _saving = true;
     const now = Date.now();
     _lastSave = now;
+    _lastHash = currentHash; // Update hash before save
+
     try {
-      // Debug: verify what we're saving
-      const depCount = window.state?.depenses?.length || 0;
-      const cptCount = window.state?.comptes?.length || 0;
-      console.log(`[Firebase] Saving: ${depCount} dépenses, ${cptCount} comptes, uid=${user.uid}`);
-
-      // Only skip if this is an accidental save (no user action)
-      // Delete-all intentionally creates empty state — allow it
-      if (depCount === 0 && cptCount === 0 && !window._allowEmptySave) {
-        console.warn('[Firebase] State is empty — skipping save (set window._allowEmptySave=true to force)');
-        setSyncStatus('⚠️ Rien à sauvegarder');
-        return;
-      }
-      window._allowEmptySave = false; // reset after use
-
-      const docRef = doc(db, 'users', user.uid);
-      console.log('[Firebase] Writing to path:', `users/${user.uid}/data/state`);
-      
-      await setDoc(docRef, { state: window.state, updatedAt: now });
-      
-      console.log(`[Firebase] ✅ Saved! depenses=${depCount}`);
-      setSyncStatus('☁️ Sauvegardé', 2000);
+      await setDoc(
+        doc(db, 'users', user.uid),
+        { state: window.state, updatedAt: now }
+      );
+      setSyncStatus('✅ Sauvegardé', 2000);
+      _pendingSave = false;
     } catch(e) {
       console.error('[Firebase] Save error:', e);
       setSyncStatus('⚠️ Erreur: ' + e.message);
+      _lastHash = ''; // Reset hash so next save retries
     } finally {
       _saving = false;
     }
   }
 
-  // ── REALTIME LISTENER ────────────────────────────────────────
-  function startSync(user) {
-    if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
-    _unsubscribe = onSnapshot(
-      doc(db, 'users', user.uid),
-      (snap) => {
-        if (!snap.exists()) return;
-        const remoteTs = snap.data().updatedAt || 0;
-
-        // Only update from remote if it's newer than our last save
-        // AND we're not currently in the middle of saving
-        // Only apply remote if newer AND not currently saving
-        if (remoteTs > _lastSave + 2000 && !_saving) {
-          const remote = snap.data().state;
-          if (remote && remote.version === 2 &&
-              Array.isArray(remote.depenses)) {
-            const localCount  = window.state.depenses?.length || 0;
-            const remoteCount = remote.depenses.length;
-            console.log(`[Snapshot] Remote: ${remoteCount} dep, Local: ${localCount} dep, ts diff: ${remoteTs - _lastSave}ms`);
-
-            _lastSave = remoteTs;
-            if (typeof window._applyState === 'function') {
-              window._applyState(remote);
-            }
-            setSyncStatus('🔄 Mis à jour', 2000);
-          }
-        }
-      },
-      err => console.error('Snapshot error:', err)
-    );
-  }
-
-  // ── AUTH STATE CHANGE ────────────────────────────────────────
+  // ── AUTH STATE ────────────────────────────────────────────────
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       _currentUser = user;
@@ -630,14 +572,12 @@ input[type=file]{display:none}
       setLoggedIn(user);
       hideLoginPage();
       await loadData(user);
-      startSync(user);
+      // ✅ NO snapshot listener — saves reads quota
+      // Data syncs only when user explicitly saves or auto-save triggers
     } else {
       _currentUser = null;
       window._fbUser = null;
-      if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
       setLoggedOut();
-
-      // Clear state on logout
       if (typeof defaultState === 'function') {
         const empty = defaultState();
         Object.keys(window.state).forEach(k => delete window.state[k]);
@@ -648,17 +588,18 @@ input[type=file]{display:none}
     }
   });
 
-  // Handle redirect result (iOS/Safari)
   getRedirectResult(auth).catch(() => {});
 
-  // Login page is shown immediately by the <head> script
-  // No need for splash here — Firebase will handle the rest
-
-  // ── GLOBAL FUNCTIONS ────────────────────────────────────────
-  window._fbUser = null;
+  // ── GLOBAL FUNCTIONS ──────────────────────────────────────────
+  window._fbUser      = null;
+  window._allowEmptySave = false;
 
   window._fbSaveData = async function() {
     if (_currentUser) await saveData(_currentUser);
+  };
+
+  window._fbLoadData = async function() {
+    if (_currentUser) await loadData(_currentUser);
   };
 
   window._fbLogin = async function() {
@@ -671,7 +612,6 @@ input[type=file]{display:none}
         await signInWithRedirect(auth, provider);
       } else if (e.code !== 'auth/cancelled-popup-request' &&
                  e.code !== 'auth/popup-closed-by-user') {
-        // Show error toast
         const t = document.createElement('div');
         t.style.cssText = `position:fixed;top:70px;left:50%;transform:translateX(-50%);
           background:#e24b4a;color:white;padding:10px 20px;border-radius:10px;
@@ -692,6 +632,7 @@ input[type=file]{display:none}
   };
 
 </script>
+
 
   <script>
     // Show login page IMMEDIATELY — before Firebase loads
@@ -1927,7 +1868,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     _showSyncDot("🔄 ...");
 
-    // Debounce 1.5s — avoid too many Firebase writes
+    // Debounce 3s — groups rapid changes into 1 Firebase write
     _autoSaveTimer = setTimeout(async () => {
       _showSyncDot("⏳ Sync...");
       try {
@@ -1941,9 +1882,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 2000);
       } catch(e) {
         _showSyncDot("⚠️ Erreur sync");
-        console.warn("AutoSave error:", e);
       }
-    }, 1500);
+    }, 3000);
 
     if (csvFileHandle) {
       try { await writeLinkedCsvFile(); } catch(e) { console.warn(e); }
