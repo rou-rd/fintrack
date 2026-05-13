@@ -418,6 +418,36 @@ input[type=file]{display:none}
     } catch(e) { return Date.now().toString(); }
   }
 
+  // ── LOGIN PAGE CONTROL ───────────────────────────────────────
+  function hideLoginPage() {
+    // Remove auth guard
+    document.body.classList.remove('app-hidden');
+
+    // Restore app visibility
+    const main = document.querySelector('.main');
+    const nav  = document.querySelector('nav');
+    if (main) main.style.display = '';
+    if (nav)  nav.style.display  = '';
+
+    // Hide login page
+    const el = document.getElementById('fb-login-page');
+    if (el) el.style.display = 'none';
+  }
+
+  function showLoginPage() {
+    document.body.classList.add('app-hidden');
+
+    // Hide app content
+    const main = document.querySelector('.main');
+    const nav  = document.querySelector('nav');
+    if (main) main.style.display = 'none';
+    if (nav)  nav.style.display  = 'none';
+
+    // Show login page
+    const el = document.getElementById('fb-login-page');
+    if (el) el.style.display = 'flex';
+  }
+
   // ── UI HELPERS ────────────────────────────────────────────────
   function setLoggedIn(user) {
     const login    = ui('fb-login-btn');
