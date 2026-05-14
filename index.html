@@ -2485,23 +2485,49 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       // Copy ALL remote properties directly into local state
       const keys = Object.keys(remote);
-      keys.forEach(k => { state[k] = remote[k]; });
 
-      // Also sync window.state
-      keys.forEach(k => { window.state[k] = remote[k]; });
+      // First clear existing state (except non-data keys)
+      const skipKeys = ['_fbUser', '_applyState', '_renderAll'];
+      Object.keys(state).forEach(k => {
+        if (!skipKeys.includes(k)) delete state[k];
+      });
+
+      // Apply all remote data
+      keys.forEach(k => {
+        state[k]        = remote[k];
+        window.state[k] = remote[k];
+      });
+
+      // Ensure required fields exist
+      if (!state.depenses)   state.depenses   = [];
+      if (!state.comptes)    state.comptes    = [];
+      if (!state.categories) state.categories = [];
+      if (!state.personnes)  state.personnes  = [];
+      if (!state.wishlist)   state.wishlist   = [];
+      if (!state.factures)   state.factures   = [];
+      if (!state.operations) state.operations = [];
+      if (!state.budgetsCategorie) state.budgetsCategorie = {};
 
       console.log('[_applyState] Applied:', state.depenses?.length,
         'dépenses, categories:', state.categories?.length);
 
+      // Verify data was applied
+      const depCount  = state.depenses?.length || 0;
+      const cptCount  = state.comptes?.length || 0;
+      const catCount  = state.categories?.length || 0;
+      console.log(`[_applyState] State: ${depCount} dépenses, ${cptCount} comptes, ${catCount} catégories`);
+
       // Render everything
-      refreshSelects();
-      renderAll();
+      try { refreshSelects(); } catch(e) { console.error('refreshSelects:', e); }
+      try { renderAll(); } catch(e) { console.error('renderAll:', e); }
+      try { renderDashboard(); } catch(e) { console.error('renderDashboard:', e); }
       try { renderWishlist(); } catch(e) {}
       try { renderFactures(); } catch(e) {}
+      try { renderAnalysesCharts(); } catch(e) {}
 
-      console.log('[_applyState] Render complete ✅');
+      console.log('[_applyState] ✅ Complete');
     } catch(e) {
-      console.error('[_applyState] Error:', e);
+      console.error('[_applyState] CRITICAL Error:', e);
     }
   };
 
