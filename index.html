@@ -2993,6 +2993,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function fillSelect(sel, items, labelKey, valueKey, emptyLabel) {
+    if (!sel) return; // Guard against null elements
     const cur = sel.value;
     sel.innerHTML = "";
     if (emptyLabel) {
@@ -3505,7 +3506,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderComptesTable() {
+    console.log("[renderComptesTable] comptes:", state.comptes?.length);
     const tb = byId("tbody-comptes");
+    if (!tb) { console.error("[renderComptesTable] tbody-comptes NOT FOUND"); return; }
     tb.innerHTML = state.comptes
       .map((c) => {
         const spent = totalDepensesSurCompte(c.id);
@@ -3637,9 +3640,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderReferentiels() {
+    console.log("[renderReferentiels] categories:", state.categories?.length, "personnes:", state.personnes?.length);
     const liStyle = `display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--surface2);gap:0.4rem`;
 
     const lp = byId("list-personnes");
+    if (!lp) { console.error("[renderReferentiels] list-personnes NOT FOUND"); return; }
     lp.innerHTML = state.personnes.map((p) =>
       `<li style="${liStyle}">
         <span>${escapeHtml(p.nom)}</span>
@@ -3858,21 +3863,23 @@ document.addEventListener("DOMContentLoaded", () => {
     window._renderAll = renderAll; // expose globally
     refreshSelects();
     const today = new Date().toISOString().slice(0, 10);
-    if (!byId("add-date").value) byId("add-date").value = today;
+    const addDateEl = byId("add-date");
+    if (addDateEl && !addDateEl.value) addDateEl.value = today;
 
     const activeId = document.querySelector(".page.active")?.id || "page-dashboard";
 
     // Always render these (they recalculate soldes from scratch)
-    renderDepensesTable();
-    renderComptesTable();  // recalculates all account balances
-    renderBudgetsPage();
-    renderReferentiels();
-    renderWlCategories();
-    renderWishlist();      // always render so cards are ready when page opens
+    // Each wrapped in try/catch so one error doesn't stop others
+    try { renderDepensesTable(); } catch(e) { console.error("renderDepensesTable:", e); }
+    try { renderComptesTable(); }  catch(e) { console.error("renderComptesTable:", e); }
+    try { renderBudgetsPage(); }   catch(e) { console.error("renderBudgetsPage:", e); }
+    try { renderReferentiels(); }  catch(e) { console.error("renderReferentiels:", e); }
+    try { renderWlCategories(); }  catch(e) { console.error("renderWlCategories:", e); }
+    try { renderWishlist(); }      catch(e) { console.error("renderWishlist:", e); }
 
     // Page-specific renders
-    if (activeId === "page-dashboard") renderDashboard();
-    if (activeId === "page-analyses") renderAnalysesCharts();
+    if (activeId === "page-dashboard") { try { renderDashboard(); } catch(e) { console.error("renderDashboard:", e); } }
+    if (activeId === "page-analyses")  { try { renderAnalysesCharts(); } catch(e) { console.error("renderAnalyses:", e); } }
 
     // Always update dashboard KPI cards even when on another page
     // so next time user goes to dashboard it's fresh
