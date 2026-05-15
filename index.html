@@ -3375,6 +3375,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const perPageEl = byId("dep-per-page");
     const perPage = perPageEl ? parseInt(perPageEl.value) || 50 : 50;
     const tb = byId("tbody-depenses");
+    const mobileCards = byId("dep-cards-mobile");
     const summary = byId("filter-summary");
     // Totals filtered by period (not all-time)
     const now = new Date();
