@@ -864,15 +864,23 @@ input[type=file]{display:none}
   function hashState() {
     try {
       const s = window.state;
-      // Quick hash based on key counts and last item
-      const dep = s.depenses?.length || 0;
-      const cpt = s.comptes?.length  || 0;
-      const cat = s.categories?.length || 0;
-      const wl  = s.wishlist?.length || 0;
-      const fac = s.factures?.length || 0;
-      const bud = s.budgetMensuelGlobal || 0;
+      const dep    = s.depenses?.length || 0;
+      const cpt    = s.comptes?.length  || 0;
+      const cat    = s.categories?.length || 0;
+      const wl     = s.wishlist?.length || 0;
+      const fac    = s.factures?.length || 0;
+      const bud    = s.budgetMensuelGlobal || 0;
+      const ops    = s.operations?.length || 0;
+      const wlcat  = s.wishlistCategories?.length || 0;
+      const faccat = s.factureCategories?.length || 0;
+
+      // Include last modified item content (catches edits within existing items)
       const lastDep = s.depenses?.[s.depenses.length-1]?.id || '';
-      return `${dep}-${cpt}-${cat}-${wl}-${fac}-${bud}-${lastDep}`;
+      const lastFac = s.factures?.[s.factures.length-1]?.categorieId || '';
+      const lastCpt = s.comptes?.[s.comptes.length-1]?.soldeInitial || 0;
+      const budHash = Object.values(s.budgetsCategorie || {}).join(',');
+
+      return `${dep}-${cpt}-${cat}-${wl}-${fac}-${bud}-${ops}-${wlcat}-${faccat}-${lastDep}-${lastFac}-${lastCpt}-${budHash}`;
     } catch(e) { return Date.now().toString(); }
   }
 
@@ -1017,10 +1025,13 @@ input[type=file]{display:none}
 
     // ✅ HASH CHECK: skip if nothing changed
     const currentHash = hashState();
-    if (currentHash === _lastHash && !window._allowEmptySave) {
+    const forceSave = window._allowEmptySave || 
+                      (window._lastForceSave && Date.now() - window._lastForceSave < 5000);
+    if (currentHash === _lastHash && !forceSave) {
       setSyncStatus('☁️ Connecté'); // already up to date
       return;
     }
+    window._lastForceSave = null; // reset
 
     const depCount = window.state?.depenses?.length || 0;
     const cptCount = window.state?.comptes?.length  || 0;
@@ -4682,6 +4693,8 @@ document.addEventListener("DOMContentLoaded", () => {
     d.moyen = byId("edit-moyen").value.trim();
     d.recurrent = byId("edit-recurrent").checked;
     d.tags = [..._editTags];
+    // Force save - editing existing item doesn't change count
+    window._lastForceSave = Date.now();
     saveState(); renderAll();
     byId("modal-edit-depense").classList.add("hidden");
   });
@@ -6429,6 +6442,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     _facEditId = null;
+    // Force Firebase save by clearing hash cache
+    if (typeof window._clearAutoSave === 'function') window._clearAutoSave();
+    window._lastForceSave = Date.now(); // signal to bypass hash check
     saveState();
     renderFactures();
     renderComptesTable();
