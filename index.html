@@ -2244,77 +2244,92 @@ input[type=file]{display:none}
   </style>
 
   <script>
-    // ── MOBILE TAB BAR LOGIC ───────────────────────────────────
-    (function() {
-      // Sync tab bar with page navigation
-      function syncTabBar(page) {
-        document.querySelectorAll('.mob-tab').forEach(t => {
-          t.classList.toggle('active', t.dataset.mobPage === page);
+    // ── MOBILE TAB BAR + FAB ───────────────────────────────────
+    
+    function closeMobMore() {
+      var sheet = document.getElementById('mob-more-sheet');
+      if (sheet) sheet.style.display = 'none';
+    }
+
+    function mobGoTo(page) {
+      // Use showPage directly if available, otherwise click nav btn
+      if (typeof showPage === 'function') {
+        showPage(page);
+      } else {
+        // Fallback: find and click any nav button for this page
+        var navBtn = document.querySelector('[data-page="' + page + '"]');
+        if (navBtn) {
+          // Temporarily make it clickable even if hidden
+          navBtn.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+        }
+      }
+      // Sync tab bar
+      document.querySelectorAll('.mob-tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.mobPage === page);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+      // Wire main tab buttons
+      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          mobGoTo(btn.dataset.mobPage);
+        });
+      });
+
+      // More button (⋯)
+      var moreBtn = document.getElementById('mob-tab-more');
+      if (moreBtn) {
+        moreBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var sheet = document.getElementById('mob-more-sheet');
+          if (sheet) sheet.style.display = 'block';
         });
       }
 
-      // Wire tab buttons
-      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const page = btn.dataset.mobPage;
-          // Trigger existing nav system
-          const navBtn = document.querySelector(`[data-page="${page}"]`);
-          if (navBtn) navBtn.click();
-          syncTabBar(page);
-        });
-      });
-
-      // More button
-      document.getElementById('mob-tab-more').addEventListener('click', () => {
-        document.getElementById('mob-more-sheet').style.display = 'block';
-      });
-
       // Close more sheet on backdrop click
-      document.getElementById('mob-more-sheet').addEventListener('click', function(e) {
-        if (e.target === this) closeMobMore();
-      });
+      var sheet = document.getElementById('mob-more-sheet');
+      if (sheet) {
+        sheet.addEventListener('click', function(e) {
+          if (e.target === this) closeMobMore();
+        });
+      }
 
-      // More sheet buttons
-      document.querySelectorAll('.mob-more-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const page = btn.dataset.mobPage;
-          const navBtn = document.querySelector(`[data-page="${page}"]`);
-          if (navBtn) navBtn.click();
+      // More sheet page buttons
+      document.querySelectorAll('.mob-more-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          mobGoTo(btn.dataset.mobPage);
           closeMobMore();
-          syncTabBar(page);
         });
       });
 
-      // FAB — scroll to add depense form
-      document.getElementById('mobile-fab').addEventListener('click', () => {
-        // Navigate to depenses page first
-        const depBtn = document.querySelector('[data-page="depenses"]');
-        if (depBtn) depBtn.click();
-        syncTabBar('depenses');
-        // Focus on amount input
-        setTimeout(() => {
-          const amtInput = document.getElementById('add-montant');
-          if (amtInput) {
-            amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            amtInput.focus();
-          }
-        }, 200);
+      // FAB (+) button → go to dépenses + focus amount
+      var fab = document.getElementById('mobile-fab');
+      if (fab) {
+        fab.addEventListener('click', function() {
+          mobGoTo('depenses');
+          setTimeout(function() {
+            var amtInput = document.getElementById('add-montant');
+            if (amtInput) {
+              amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              amtInput.focus();
+            }
+          }, 250);
+        });
+      }
+
+      // Sync tab bar when page changes via desktop nav
+      document.querySelectorAll('[data-page]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var page = btn.getAttribute('data-page');
+          document.querySelectorAll('.mob-tab').forEach(function(t) {
+            t.classList.toggle('active', t.dataset.mobPage === page);
+          });
+        });
       });
 
-      // Hook into existing page nav to sync tab bar
-      const observer = new MutationObserver(() => {
-        const active = document.querySelector('.page.active');
-        if (active) {
-          const pageId = active.id.replace('page-', '');
-          syncTabBar(pageId);
-        }
-      });
-      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    })();
-
-    function closeMobMore() {
-      document.getElementById('mob-more-sheet').style.display = 'none';
-    }
+    });
   </script>
 
 </body>
@@ -2443,6 +2458,9 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
     btn.addEventListener("click", () => showPage(btn.getAttribute("data-page")));
   });
+
+  // Expose showPage globally for mobile nav
+  window.showPage = showPage;
 });
 
 
@@ -6983,77 +7001,92 @@ document.addEventListener("DOMContentLoaded", () => {
   </style>
 
   <script>
-    // ── MOBILE TAB BAR LOGIC ───────────────────────────────────
-    (function() {
-      // Sync tab bar with page navigation
-      function syncTabBar(page) {
-        document.querySelectorAll('.mob-tab').forEach(t => {
-          t.classList.toggle('active', t.dataset.mobPage === page);
+    // ── MOBILE TAB BAR + FAB ───────────────────────────────────
+    
+    function closeMobMore() {
+      var sheet = document.getElementById('mob-more-sheet');
+      if (sheet) sheet.style.display = 'none';
+    }
+
+    function mobGoTo(page) {
+      // Use showPage directly if available, otherwise click nav btn
+      if (typeof showPage === 'function') {
+        showPage(page);
+      } else {
+        // Fallback: find and click any nav button for this page
+        var navBtn = document.querySelector('[data-page="' + page + '"]');
+        if (navBtn) {
+          // Temporarily make it clickable even if hidden
+          navBtn.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+        }
+      }
+      // Sync tab bar
+      document.querySelectorAll('.mob-tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.mobPage === page);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+      // Wire main tab buttons
+      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          mobGoTo(btn.dataset.mobPage);
+        });
+      });
+
+      // More button (⋯)
+      var moreBtn = document.getElementById('mob-tab-more');
+      if (moreBtn) {
+        moreBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var sheet = document.getElementById('mob-more-sheet');
+          if (sheet) sheet.style.display = 'block';
         });
       }
 
-      // Wire tab buttons
-      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const page = btn.dataset.mobPage;
-          // Trigger existing nav system
-          const navBtn = document.querySelector(`[data-page="${page}"]`);
-          if (navBtn) navBtn.click();
-          syncTabBar(page);
-        });
-      });
-
-      // More button
-      document.getElementById('mob-tab-more').addEventListener('click', () => {
-        document.getElementById('mob-more-sheet').style.display = 'block';
-      });
-
       // Close more sheet on backdrop click
-      document.getElementById('mob-more-sheet').addEventListener('click', function(e) {
-        if (e.target === this) closeMobMore();
-      });
+      var sheet = document.getElementById('mob-more-sheet');
+      if (sheet) {
+        sheet.addEventListener('click', function(e) {
+          if (e.target === this) closeMobMore();
+        });
+      }
 
-      // More sheet buttons
-      document.querySelectorAll('.mob-more-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const page = btn.dataset.mobPage;
-          const navBtn = document.querySelector(`[data-page="${page}"]`);
-          if (navBtn) navBtn.click();
+      // More sheet page buttons
+      document.querySelectorAll('.mob-more-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          mobGoTo(btn.dataset.mobPage);
           closeMobMore();
-          syncTabBar(page);
         });
       });
 
-      // FAB — scroll to add depense form
-      document.getElementById('mobile-fab').addEventListener('click', () => {
-        // Navigate to depenses page first
-        const depBtn = document.querySelector('[data-page="depenses"]');
-        if (depBtn) depBtn.click();
-        syncTabBar('depenses');
-        // Focus on amount input
-        setTimeout(() => {
-          const amtInput = document.getElementById('add-montant');
-          if (amtInput) {
-            amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            amtInput.focus();
-          }
-        }, 200);
+      // FAB (+) button → go to dépenses + focus amount
+      var fab = document.getElementById('mobile-fab');
+      if (fab) {
+        fab.addEventListener('click', function() {
+          mobGoTo('depenses');
+          setTimeout(function() {
+            var amtInput = document.getElementById('add-montant');
+            if (amtInput) {
+              amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              amtInput.focus();
+            }
+          }, 250);
+        });
+      }
+
+      // Sync tab bar when page changes via desktop nav
+      document.querySelectorAll('[data-page]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var page = btn.getAttribute('data-page');
+          document.querySelectorAll('.mob-tab').forEach(function(t) {
+            t.classList.toggle('active', t.dataset.mobPage === page);
+          });
+        });
       });
 
-      // Hook into existing page nav to sync tab bar
-      const observer = new MutationObserver(() => {
-        const active = document.querySelector('.page.active');
-        if (active) {
-          const pageId = active.id.replace('page-', '');
-          syncTabBar(pageId);
-        }
-      });
-      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    })();
-
-    function closeMobMore() {
-      document.getElementById('mob-more-sheet').style.display = 'none';
-    }
+    });
   </script>
 
 </body>
