@@ -1,24 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#3D72D8">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="FinTrack">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <script>
-    if ('serviceWorker' in navigator) {
-      const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
-      if (isSecure) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
-            .then(() => console.log('SW registered'))
-            .catch(e => console.warn('SW error:', e));
-        });
-      }
-    }
-  </script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>FinTrack — Gestion des dépenses</title>
@@ -56,7 +38,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:99px}
 
 /* NAV */
-.nav{width:var(--nav-w);height:100vh;background:var(--s0);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .22s var(--ease);overflow:hidden}
+.nav{width:var(--nav-w);min-height:100vh;background:var(--s0);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .22s var(--ease);overflow:hidden}
 .nav-header{display:flex;align-items:center;gap:10px;padding:20px 18px 14px;border-bottom:1px solid var(--border);min-height:62px;flex-shrink:0}
 .nav-logo-icon{width:34px;height:34px;flex-shrink:0;border-radius:9px;background:linear-gradient(140deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;letter-spacing:-1px}
 .nav-logo-text{font-size:15px;font-weight:600;letter-spacing:-.3px;white-space:nowrap;overflow:hidden}
@@ -68,7 +50,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .nav-btn.active{background:var(--accent-d);color:var(--accent);font-weight:500}
 .nav-icon{font-size:15px;width:22px;text-align:center;flex-shrink:0}
 .nav-label{overflow:hidden;text-overflow:ellipsis}
-.nav-footer{padding:12px 8px;border-top:1px solid var(--border);flex-shrink:0;background:var(--s0)}
+.nav-footer{padding:12px 8px;border-top:1px solid var(--border);flex-shrink:0}
 .btn-save-nav{width:100%;padding:9px 12px;background:var(--accent);border:none;border-radius:var(--r);color:#fff;font-family:var(--font);font-size:12.5px;font-weight:500;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;overflow:hidden}
 .btn-save-nav:hover{opacity:.88}
 #save-status{font-size:11px;color:var(--green);text-align:center;padding:5px 4px 0;min-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -342,829 +324,821 @@ input[type=file]{display:none}
 
 /* RESPONSIVE */
 @media(max-width:900px){.chart-grid,.chart-grid.cols3,.two-col{grid-template-columns:1fr}}
-@media(max-width:720px){
-  .nav{transform:translateX(-100%);width:240px}
-  .nav.open{transform:none}
-  .main{margin-left:0}
-  .hamburger{display:flex}
-  .content{padding:16px 14px 48px}
-  .topbar{padding:0 14px}
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .form-grid{grid-template-columns:1fr}
-  .filters{flex-direction:column}
-  .filters .field input,.filters .field select{width:100%}
-  th,td{padding:8px 8px}
-  .table-wrap{font-size:12px}
+
+/* ── MOBILE BOTTOM NAV ─────────────────────────────────────── */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--s0);
+  border-top: 1px solid var(--border2);
+  z-index: 150;
+  align-items: stretch;
+  justify-content: space-around;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mob-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 4px;
+  transition: color .15s;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+.mob-tab .mob-icon { font-size: 20px; line-height: 1; transition: transform .15s; }
+.mob-tab.active { color: var(--accent); }
+.mob-tab.active .mob-icon { transform: scale(1.15); }
+.mob-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 32px; height: 3px;
+  background: var(--accent);
+  border-radius: 0 0 4px 4px;
 }
 
-  /* ═══════════════════════════════════════════════════════════
-     FORM UX IMPROVEMENTS
-  ═══════════════════════════════════════════════════════════ */
+/* ── MORE DRAWER ───────────────────────────────────────────── */
+.mob-more-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 160;
+  backdrop-filter: blur(3px);
+}
+.mob-more-backdrop.show { display: block; }
+.mob-more-sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--s0);
+  border-top: 1px solid var(--border2);
+  border-radius: 20px 20px 0 0;
+  z-index: 161;
+  padding: 12px 16px 32px;
+  transform: translateY(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.mob-more-sheet.show { transform: translateY(0); }
+.mob-more-handle {
+  width: 36px; height: 4px;
+  background: var(--border2);
+  border-radius: 99px;
+  margin: 0 auto 16px;
+}
+.mob-more-title { font-size: 13px; font-weight: 600; color: var(--muted2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.mob-more-btn {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; padding: 14px 12px;
+  border: none; background: none;
+  color: var(--text); font-family: var(--font);
+  font-size: 15px; font-weight: 500;
+  cursor: pointer; border-radius: var(--r2);
+  text-align: left; -webkit-tap-highlight-color: transparent;
+  transition: background .12s;
+}
+.mob-more-btn:hover, .mob-more-btn:active { background: var(--s2); }
+.mob-more-btn .mob-more-icon { font-size: 22px; width: 36px; text-align: center; flex-shrink: 0; }
+.mob-more-btn.active { color: var(--accent); background: var(--accent-d); }
 
-  /* Fields with icons */
-  .field-icon {
-    position: relative;
-  }
-  .field-icon .field-icon-el {
-    position: absolute;
-    left: 11px; top: 50%;
-    transform: translateY(-50%);
-    font-size: 15px;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .field-icon input,
-  .field-icon select {
-    padding-left: 34px !important;
-  }
+/* ── FAB (Floating Action Button) ─────────────────────────── */
+.fab {
+  display: none;
+  position: fixed;
+  bottom: 80px; right: 18px;
+  width: 54px; height: 54px;
+  background: linear-gradient(140deg, var(--accent), var(--accent2));
+  border: none; border-radius: 50%;
+  color: #fff; font-size: 26px; line-height: 1;
+  cursor: pointer; z-index: 140;
+  box-shadow: 0 6px 20px rgba(79,143,255,.45);
+  align-items: center; justify-content: center;
+  transition: transform .15s, box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab:active { transform: scale(.92); box-shadow: 0 3px 10px rgba(79,143,255,.35); }
 
-  /* Required field indicator */
-  .field.required label::after {
-    content: ' *';
-    color: var(--red);
-    font-size: 12px;
+/* ── MOBILE MEDIA QUERY ────────────────────────────────────── */
+@media(max-width:720px){
+  /* Hide desktop sidebar */
+  .nav { display: none !important; }
+  /* Override: sidebar overlay mode when hamburger used (keep for edge case) */
+  .nav.mob-overlay {
+    display: flex !important;
+    transform: translateX(-100%);
+    width: 85vw; max-width: 300px;
+    z-index: 170;
+    box-shadow: 4px 0 32px rgba(0,0,0,.4);
   }
+  .nav.mob-overlay.open { transform: translateX(0); }
 
-  /* Field hint text */
-  .field-hint {
-    font-size: 11px;
-    color: var(--muted2);
-    margin-top: 4px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+  /* Show mobile chrome */
+  .mobile-bottom-nav { display: flex; }
+  .fab { display: flex; }
+
+  /* Layout */
+  .main { margin-left: 0; }
+  .content { padding: 14px 14px 90px; }
+
+  /* Topbar */
+  .topbar { padding: 0 14px; height: 54px; }
+  .hamburger { display: none; } /* replaced by bottom nav */
+  .topbar-title { font-size: 15px; }
+  .topbar-desc { display: none; }
+
+  /* KPI grid: 2 cols on mobile */
+  .kpi-grid { grid-template-columns: repeat(2,1fr); gap: 10px; }
+  .kpi { padding: 14px; }
+  .kpi-value { font-size: 17px; }
+
+  /* Forms: single column, larger touch targets */
+  .form-grid { grid-template-columns: 1fr; gap: 10px; }
+  .field input, .field select, .field textarea,
+  input[type=date], input[type=number], input[type=text],
+  input[type=search], input[type=url], select {
+    font-size: 16px !important; /* prevents iOS zoom */
+    padding: 11px 12px;
+    min-height: 46px;
   }
+  .field label { font-size: 11.5px; }
+  .field-check { padding-top: 8px; }
+  .field-check label { font-size: 15px !important; }
 
-  /* Validation states */
-  .field.valid input,
-  .field.valid select {
-    border-color: var(--green) !important;
+  /* Buttons */
+  .btn { padding: 10px 16px; font-size: 13.5px; min-height: 44px; }
+  .btn-primary { width: 100%; justify-content: center; margin-top: 4px; }
+  .btn-sm { min-height: 36px; font-size: 12px; }
+
+  /* Panels */
+  .panel { padding: 16px 14px; border-radius: var(--r2); }
+  .panel-title { font-size: 15px; }
+
+  /* Tables: horizontal scroll with sticky first col feel */
+  .table-wrap { font-size: 12px; border-radius: var(--r); }
+  th, td { padding: 9px 8px; }
+  th { font-size: 10px; }
+
+  /* Filters: stack vertically */
+  .filters { flex-direction: column; padding: 12px 14px; gap: 8px; }
+  .filters .field input, .filters .field select { width: 100%; }
+  .filters .btn { width: auto; }
+
+  /* Charts: slightly shorter on mobile */
+  .chart-wrap.h220 { height: 180px; }
+  .chart-wrap.h260 { height: 210px; }
+  .chart-wrap.h280 { height: 220px; }
+
+  /* Modals: bottom-sheet style */
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal-box {
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+    padding: 20px 18px 32px;
+    max-width: 100%;
+    animation: sheetIn .25s cubic-bezier(.4,0,.2,1);
   }
-  .field.error input,
-  .field.error select {
-    border-color: var(--red) !important;
-    animation: shake .3s ease;
+  @keyframes sheetIn { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* Confirm dialog: centered but compact */
+  .confirm-box { padding: 24px 18px; }
+
+  /* Two-col → single col */
+  .two-col { grid-template-columns: 1fr; }
+
+  /* Nav buttons in topbar-right: compact */
+  .topbar-right { gap: 6px; }
+  #btn-theme-toggle { padding: 6px 8px; font-size: 17px; }
+
+  /* Budget rows */
+  .budget-row { flex-direction: column; align-items: flex-start; }
+  .budget-row input { width: 100% !important; }
+
+  /* Saving planner */
+  .sp-budget-input { font-size: 20px; width: 140px; }
+
+  /* Pagination: larger tap targets */
+  .pag-bar .page-btn { min-width: 38px; height: 38px; font-size: 13px; }
+
+  /* Ref items */
+  .ref-item { padding: 12px 4px; }
+  .ref-item span { font-size: 14px; }
+
+  /* Wl cards */
+  .wl-card { padding: 14px; }
+
+  /* Save button in sidebar — hide since sidebar hidden */
+  .btn-save-nav { display: none; }
+
+  /* Hide topbar desc on mobile */
+  .topbar-left { gap: 8px; }
+}
+
+/* ── SAFE AREA for notched phones ──────────────────────────── */
+@supports(padding-bottom: env(safe-area-inset-bottom)){
+  @media(max-width:720px){
+    .content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+    .mobile-bottom-nav { padding-bottom: env(safe-area-inset-bottom); height: calc(64px + env(safe-area-inset-bottom)); }
+    .fab { bottom: calc(80px + env(safe-area-inset-bottom)); }
   }
-  @keyframes shake {
-    0%,100% { transform: translateX(0); }
-    25% { transform: translateX(-4px); }
-    75% { transform: translateX(4px); }
-  }
+}
 
-  /* Amount input — big and prominent */
-  .amount-field input {
-    font-size: 22px !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.5px;
-    text-align: right;
-    padding-right: 52px !important;
-  }
-  .amount-field {
-    position: relative;
-  }
-  .amount-currency {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--muted2);
-    pointer-events: none;
-  }
+/* TOGGLE SWITCH */
+.toggle-switch { position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0 }
+.toggle-switch input { opacity:0; width:0; height:0 }
+.toggle-slider { position:absolute; cursor:pointer; inset:0; background:var(--s3); border-radius:99px; transition:.2s }
+.toggle-slider:before { content:""; position:absolute; width:18px; height:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s }
+.toggle-switch input:checked + .toggle-slider { background:var(--green) }
+.toggle-switch input:checked + .toggle-slider:before { transform:translateX(18px) }
 
-  /* Form section divider */
-  .form-section {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 12px 0 6px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 12px;
-  }
+/* ══════════════════════════════════════════════════
+   MOBILE-FIRST DASHBOARD & FORM REDESIGN
+══════════════════════════════════════════════════ */
 
-  /* Quick select chips */
-  .quick-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  .quick-chip {
-    padding: 5px 11px;
-    border-radius: 99px;
-    font-size: 12px;
-    font-weight: 600;
-    border: 1.5px solid var(--border2);
-    background: var(--s2);
-    color: var(--muted2);
-    cursor: pointer;
-    transition: all .15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .quick-chip:hover,
-  .quick-chip.active {
-    border-color: var(--accent);
-    background: var(--accent-d);
-    color: var(--accent);
-  }
+/* Dashboard hero card */
+.dash-hero {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  border-radius: 20px;
+  padding: 24px 20px 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+}
+.dash-hero::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 160px; height: 160px;
+  background: rgba(255,255,255,.08);
+  border-radius: 50%;
+}
+.dash-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -20px; left: 40px;
+  width: 100px; height: 100px;
+  background: rgba(255,255,255,.05);
+  border-radius: 50%;
+}
+.dash-hero-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  opacity: .75;
+  margin-bottom: 6px;
+}
+.dash-hero-amount {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.dash-hero-sub {
+  font-size: 12.5px;
+  opacity: .72;
+  margin-bottom: 16px;
+}
+.dash-hero-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dash-hero-pill {
+  background: rgba(255,255,255,.18);
+  border-radius: 99px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  backdrop-filter: blur(4px);
+}
+.dash-hero-pill .ph-icon { font-size: 13px; }
 
-  /* Improved panel title */
-  .panel-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 14px;
-    color: var(--text);
-  }
-  .panel-subtitle {
-    font-size: 12px;
-    color: var(--muted2);
-    margin-top: -10px;
-    margin-bottom: 14px;
-  }
+/* Stat row: quick numbers below hero */
+.dash-stat-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dash-stat {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 14px 12px;
+  position: relative;
+  overflow: hidden;
+  transition: transform .15s, border-color .15s;
+}
+.dash-stat:active { transform: scale(.97); }
+.dash-stat-icon {
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 6px;
+  display: block;
+}
+.dash-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 3px;
+}
+.dash-stat-value {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  color: var(--text);
+}
+.dash-stat-sub {
+  font-size: 10.5px;
+  color: var(--muted2);
+  display: block;
+  margin-top: 2px;
+}
+.dash-stat-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--s3);
+  overflow: hidden;
+  border-radius: 0 0 14px 14px;
+}
+.dash-stat-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width .5s var(--ease);
+}
+.dash-stat.danger { border-color: rgba(244,63,94,.3); }
+.dash-stat.danger .dash-stat-value { color: var(--red); }
+.dash-stat.danger .dash-stat-bar-fill { background: var(--red); }
+.dash-stat.warn { border-color: rgba(245,158,11,.3); }
+.dash-stat.warn .dash-stat-value { color: var(--amber); }
+.dash-stat.warn .dash-stat-bar-fill { background: var(--amber); }
+.dash-stat.green .dash-stat-bar-fill { background: var(--green); }
 
-  /* Progress steps for multi-step forms */
-  .form-steps {
-    display: flex;
-    gap: 0;
-    margin-bottom: 20px;
-  }
-  .form-step {
-    flex: 1;
-    text-align: center;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    position: relative;
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--border2);
-    transition: all .2s;
-  }
-  .form-step.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
-  .form-step.done {
-    color: var(--green);
-    border-bottom-color: var(--green);
-  }
+/* Account cards row (horizontal scroll) */
+.dash-accounts-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.dash-accounts-scroll::-webkit-scrollbar { display: none; }
+.dash-acc-card {
+  flex-shrink: 0;
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  min-width: 140px;
+  position: relative;
+  overflow: hidden;
+}
+.dash-acc-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--green);
+  opacity: .7;
+}
+.dash-acc-card.danger::after { background: var(--red); }
+.dash-acc-card.warn::after { background: var(--amber); }
+.dash-acc-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  display: block;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-acc-balance {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  color: var(--text);
+}
+.dash-acc-card.danger .dash-acc-balance { color: var(--red); }
+.dash-acc-card.warn .dash-acc-balance { color: var(--amber); }
+.dash-acc-spent {
+  font-size: 10.5px;
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
 
-  /* Btn submit — always full width on mobile */
-  @media (max-width: 768px) {
-    .btn-submit-main {
-      width: 100% !important;
-      padding: 14px !important;
-      font-size: 15px !important;
-    }
-  }
+/* Section header for dashboard groups */
+.dash-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--muted);
+  margin-bottom: 10px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── FORM REDESIGN ──────────────────────────────── */
+/* Icon-labeled field groups */
+.form-section {
+  margin-bottom: 20px;
+}
+.form-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.field-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+}
+.field-icon label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.field-icon label .lbl-icon {
+  font-size: 14px;
+  opacity: .8;
+}
+.field-icon input,
+.field-icon select,
+.field-icon textarea {
+  background: var(--s2);
+  border: 1.5px solid var(--border2);
+  color: var(--text);
+  padding: 11px 13px;
+  border-radius: var(--r2);
+  font-family: var(--font);
+  font-size: 14px;
+  font-size: clamp(14px, 4vw, 16px);
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+  outline: none;
+  min-height: 48px;
+}
+.field-icon input:focus,
+.field-icon select:focus,
+.field-icon textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-d);
+}
+/* Amount field - bigger */
+.field-amount input {
+  font-size: 24px !important;
+  font-weight: 700;
+  letter-spacing: -1px;
+  font-family: var(--mono);
+  color: var(--accent);
+  padding: 14px 16px;
+  text-align: right;
+  border: 2px solid var(--accent);
+  background: var(--accent-d);
+  min-height: 60px;
+}
+
+/* Chip selectors for common categories */
+.chip-row {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border2);
+  background: var(--s2);
+  color: var(--muted2);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font);
+}
+.chip:active { transform: scale(.94); }
+.chip.selected {
+  border-color: var(--accent);
+  background: var(--accent-d);
+  color: var(--accent);
+}
+
+/* Big submit button */
+.btn-submit-lg {
+  width: 100%;
+  padding: 15px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: -.2px;
+  min-height: 54px;
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-submit-lg:active { opacity: .88; transform: scale(.98); }
+
+/* card alias to kpi for JS compatibility */
+.card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .15s, transform .15s;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--kc, var(--accent));
+  opacity: .6;
+}
+.card > span:first-child {
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.card > strong {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.card-sub {
+  font-size: 11px;
+  color: var(--muted2);
+}
+.card-trend {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.card-trend.up { color: var(--red); }
+.card-trend.down { color: var(--green); }
+.card-trend.flat { color: var(--muted2); }
+.card-bar-bg {
+  background: var(--s3);
+  border-radius: 99px;
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.card-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width .5s var(--ease);
+}
+.card-bar-fill.danger { background: var(--red); }
+.card-bar-fill.warn { background: var(--amber); }
+.card.danger { --kc: var(--red); }
+.card.danger > strong { color: var(--red); }
+.card.warn { --kc: var(--amber); }
+.card.warn > strong { color: var(--amber); }
+
+/* Mobile overrides for new dashboard */
+@media(max-width:720px) {
+  .dash-hero-amount { font-size: 30px; }
+  .dash-stat-row { grid-template-columns: repeat(2, 1fr); }
+  .dash-section-title { margin-top: 6px; }
+  .field-amount input { font-size: 22px !important; }
+  .btn-submit-lg { font-size: 14px; }
+}
 
 
-  /* Onboarding steps */
-  .onb-step {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; border-radius: 10px;
-    background: var(--s1); border: 1px solid var(--border2);
-    cursor: pointer; transition: all .15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .onb-step:hover, .onb-step:active { 
-    border-color: var(--accent); background: var(--accent-d);
-  }
-  .onb-num {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--accent); color: white;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; flex-shrink: 0;
-  }
-  .onb-text { flex: 1; font-size: 13px; color: var(--text); font-weight: 500; }
-  .onb-arrow { color: var(--accent); font-weight: 700; }
-  .onb-step.done .onb-num { background: var(--green); }
-  .onb-step.done .onb-text { color: var(--muted2); text-decoration: line-through; }
+/* Mobile logo and topbar tweaks */
+@media(max-width:720px) {
+  .mob-logo { display: flex !important; }
+  .topbar-title-group { display: none; }
+  #btn-save-local-top { display: flex !important; }
+}
 
-  /* dep-essential styling */
-  .dep-essential { margin-bottom: 4px; }
-  .dep-amount-row { display: flex; gap: 10px; align-items: flex-end; }
-
-  /* ═══ AUTH GUARD ═══ */
-  .app-hidden .main { display: none !important; }
-  .app-hidden nav   { display: none !important; }
-
-  /* ═══════════════════════════════════════════════════════════
-     MOBILE-FIRST UI — Complete overhaul for phone/tablet
-  ═══════════════════════════════════════════════════════════ */
-
-  /* ── BOTTOM TAB BAR (mobile only) ─────────────────────── */
-  #mobile-tab-bar {
-    display: none;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    height: 60px;
-    background: var(--s0);
-    border-top: 1px solid var(--border2);
-    z-index: 200;
-    padding: 0 4px;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  #mobile-tab-bar .tab-items {
-    display: flex;
-    height: 60px;
-    align-items: center;
-    justify-content: space-around;
-  }
-  .mob-tab {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    flex: 1;
-    height: 100%;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    padding: 6px 2px;
-    border-radius: 0;
-    position: relative;
-    -webkit-tap-highlight-color: transparent;
-    transition: opacity .15s;
-  }
-  .mob-tab:active { opacity: .7; }
-  .mob-tab .tab-icon { font-size: 22px; line-height: 1; }
-  .mob-tab .tab-label {
-    font-size: 10px; font-weight: 600;
-    color: var(--muted2);
-    transition: color .15s;
-  }
-  .mob-tab.active .tab-label { color: var(--accent); }
-  .mob-tab .tab-dot {
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    background: var(--accent);
-    position: absolute;
-    bottom: 6px;
-    opacity: 0;
-    transition: opacity .15s;
-  }
-  .mob-tab.active .tab-dot { opacity: 1; }
-
-  /* FAB — Quick add button */
-  #mobile-fab {
-    display: none;
-    position: fixed;
-    bottom: 74px; right: 18px;
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: white;
-    font-size: 26px;
-    font-weight: 300;
-    border: none;
-    cursor: pointer;
-    z-index: 201;
-    box-shadow: 0 4px 16px rgba(79,143,255,.45);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    transition: transform .15s, box-shadow .15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  #mobile-fab:active {
-    transform: scale(.93);
-    box-shadow: 0 2px 8px rgba(79,143,255,.3);
-  }
-
-  /* ── RESPONSIVE BREAKPOINTS ────────────────────────────── */
-  /* Depense mobile cards */
-  .dep-cards-list { display: none; }
-  .dep-card {
-    display: flex; align-items: center; gap: 12px;
-    padding: 13px 14px;
-    border-radius: 12px;
-    background: var(--s1);
-    border: 1px solid var(--border2);
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: background .15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .dep-card:active { background: var(--s2); }
-  .dep-card-icon {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; flex-shrink: 0;
-    background: var(--s2);
-  }
-  .dep-card-body { flex: 1; min-width: 0; }
-  .dep-card-cat {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .dep-card-sub {
-    font-size: 11px; color: var(--muted2);
-    margin-top: 2px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .dep-card-amount {
-    font-size: 14px; font-weight: 700;
-    color: var(--red); flex-shrink: 0;
-    text-align: right;
-  }
-  .dep-card-date {
-    font-size: 10px; color: var(--muted);
-    margin-top: 2px; text-align: right;
-  }
-  .dep-card-swipe-hint {
-    font-size: 10px; color: var(--muted);
-    text-align: center; padding: 6px 0;
-  }
-
-  @media (max-width: 768px) {
-    /* Show bottom tab bar + FAB */
-    #mobile-tab-bar { display: block; }
-    #mobile-fab     { display: flex !important; }
-
-    /* Hide desktop sidebar */
-    .nav { display: none !important; }
-    #btn-hamburger { display: none !important; }
-
-    /* Switch table/cards on mobile */
-    .table-wrap table { display: none; }
-    .dep-cards-list   { display: block !important; }
-
-    /* Full-width main */
-    .main { margin-left: 0 !important; }
-
-    /* Topbar compact */
-    .topbar {
-      padding: 0 14px !important;
-      height: 52px !important;
-    }
-    .topbar-title { font-size: 16px !important; }
-    .topbar-desc  { display: none; }
-
-    /* Content padding — leave room for bottom bar */
-    .content {
-      padding: 12px 14px 80px !important;
-    }
-
-    /* KPI grid — 2 columns on phone */
-    .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
-
-    /* KPI cards — bigger text */
-    .kpi-val { font-size: 15px !important; }
-    .kpi-label { font-size: 10px !important; }
-
-    /* Forms — single column */
-    .form-grid { grid-template-columns: 1fr !important; }
-    .filters { flex-direction: column !important; gap: 8px !important; }
-    .filters .field input,
-    .filters .field select { width: 100% !important; }
-
-    /* Tables → scroll horizontally */
-    .table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-    th, td { padding: 10px 10px !important; font-size: 12px !important; }
-    .table-wrap table { min-width: 500px; }
-
-    /* Charts — full width */
-    .chart-grid, .chart-grid.cols3, .two-col {
-      grid-template-columns: 1fr !important;
-    }
-    .chart-wrap { height: 220px !important; }
-
-    /* Panels */
-    .panel { border-radius: 12px !important; padding: 14px !important; }
-
-    /* Buttons — bigger touch targets */
-    .btn { min-height: 40px !important; padding: 8px 16px !important; }
-    .btn-sm { min-height: 34px !important; }
-
-    /* Nav overlay for sidebar if open */
-    .nav-overlay { z-index: 150; }
-
-    /* Modals — full screen on mobile */
-    .modal-box {
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      border-radius: 20px 20px 0 0 !important;
-      position: fixed !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      max-height: 90vh !important;
-      overflow-y: auto !important;
-    }
-    .modal-backdrop {
-      align-items: flex-end !important;
-    }
-
-    /* Add depense form — simplified on mobile */
-    .add-depense-panel .form-grid {
-      grid-template-columns: 1fr 1fr !important;
-    }
-    #add-montant { font-size: 20px !important; }
-
-    /* Dashboard welcome */
-    .dash-welcome { font-size: 18px !important; }
-
-    /* Wishlist cards — single column */
-    .wl-cards-grid { grid-template-columns: 1fr !important; }
-
-    /* Hide less important columns on mobile */
-    .hide-mobile { display: none !important; }
-
-    /* Section headers */
-    .section-title { font-size: 13px !important; }
-
-    /* Input focus — prevent zoom on iOS */
-    input, select, textarea {
-      font-size: 16px !important; /* prevents iOS zoom */
-    }
-    /* But keep small labels small */
-    .field label { font-size: 11px !important; }
-  }
-
-  @media (max-width: 400px) {
-    .kpi-grid { grid-template-columns: 1fr 1fr !important; }
-    .content { padding: 10px 10px 80px !important; }
-  }
-
-  /* ── BETTER TOUCH INTERACTIONS ─────────────────────────── */
-  @media (hover: none) {
-    /* Remove hover states on touch devices */
-    .nav-btn:hover { background: transparent; }
-    .btn:hover { opacity: 1; }
-  }
-
-  /* ── iOS SAFE AREA ──────────────────────────────────────── */
-  @supports (padding-bottom: env(safe-area-inset-bottom)) {
-    #mobile-tab-bar {
-      padding-bottom: env(safe-area-inset-bottom);
-      height: calc(60px + env(safe-area-inset-bottom));
-    }
-    #mobile-fab {
-      bottom: calc(74px + env(safe-area-inset-bottom));
-    }
-    @media (max-width: 768px) {
-      .content {
-        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
-      }
-    }
-  }
+/* ══════════════════════════════════════════════
+   SUB-CATEGORY SYSTEM
+══════════════════════════════════════════════ */
+.subcat-picker {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--s2);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r2);
+  animation: fadeIn .18s ease;
+}
+.subcat-picker.show { display: flex; }
+.subcat-picker-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.subcat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.subcat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 13px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border2);
+  background: var(--s1);
+  color: var(--muted2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .14s;
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font);
+  white-space: nowrap;
+}
+.subcat-chip:active { transform: scale(.93); }
+.subcat-chip.selected {
+  border-color: var(--accent);
+  background: var(--accent-d);
+  color: var(--accent);
+  font-weight: 600;
+}
+.subcat-chip .sc-icon { font-size: 15px; }
+.subcat-add-row {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 4px;
+}
+.subcat-add-inp {
+  flex: 1;
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: var(--r);
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+  min-width: 0;
+}
+.subcat-add-inp:focus { border-color: var(--accent); }
+.subcat-add-btn {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: var(--r);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* In referentiels list */
+.cat-tree-item {
+  display: flex;
+  flex-direction: column;
+}
+.cat-tree-parent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px 6px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+.cat-tree-parent:last-of-type { border-bottom: none; }
+.cat-parent-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cat-subcats {
+  padding: 4px 0 8px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cat-subcat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 4px;
+  border-radius: var(--r);
+  gap: 8px;
+  transition: background .1s;
+}
+.cat-subcat-row:hover { background: var(--s2); }
+.cat-subcat-name {
+  font-size: 13px;
+  color: var(--muted2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cat-subcat-name::before {
+  content: '↳';
+  color: var(--accent);
+  font-size: 12px;
+  opacity: .7;
+}
+.badge-subcat {
+  font-size: 10px;
+  background: var(--accent-d);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+/* In select dropdowns, indent sub-categories */
+select option.subcat-option {
+  padding-left: 20px;
+}
 
 </style>
-
-  <!-- ═══ FIREBASE SDK ═══ -->
-  <script type="module">
-  // ══════════════════════════════════════════════════════════════
-  //  FINTRACK — FIREBASE OPTIMISÉ
-  //  Minimise les lectures/écritures Firebase
-  // ══════════════════════════════════════════════════════════════
-  import { initializeApp }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider,
-           signInWithPopup, signInWithRedirect, getRedirectResult,
-           signOut, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  // ── CONFIG ────────────────────────────────────────────────────
-  const firebaseConfig = {
-    apiKey:            "AIzaSyCrYOyadkNjuX3dSoX49ExSDzFuURd5NNM",
-    authDomain:        "fintrack-7965e.firebaseapp.com",
-    projectId:         "fintrack-7965e",
-    storageBucket:     "fintrack-7965e.firebasestorage.app",
-    messagingSenderId: "1024694573498",
-    appId:             "1:1024694573498:web:f4eb2fc4378669b6872583"
-  };
-
-  const app  = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db   = getFirestore(app);
-
-  // ── STATE ─────────────────────────────────────────────────────
-  let _currentUser = null;
-  let _saving      = false;
-  let _lastSave    = 0;
-  let _lastHash    = '';      // Hash of last saved state
-  let _saveTimer   = null;   // Debounce timer
-  let _pendingSave = false;  // Has unsaved changes?
-
-  const ui = id => document.getElementById(id);
-
-  // ── HASH FUNCTION (fast, lightweight) ─────────────────────────
-  // Only save to Firebase when data actually changes
-  function hashState() {
-    try {
-      const s = window.state;
-      const dep    = s.depenses?.length || 0;
-      const cpt    = s.comptes?.length  || 0;
-      const cat    = s.categories?.length || 0;
-      const wl     = s.wishlist?.length || 0;
-      const fac    = s.factures?.length || 0;
-      const bud    = s.budgetMensuelGlobal || 0;
-      const ops    = s.operations?.length || 0;
-      const wlcat  = s.wishlistCategories?.length || 0;
-      const faccat = s.factureCategories?.length || 0;
-
-      // Include last modified item content (catches edits within existing items)
-      const lastDep = s.depenses?.[s.depenses.length-1]?.id || '';
-      const lastFac = s.factures?.[s.factures.length-1]?.categorieId || '';
-      const lastCpt = s.comptes?.[s.comptes.length-1]?.soldeInitial || 0;
-      const budHash = Object.values(s.budgetsCategorie || {}).join(',');
-
-      return `${dep}-${cpt}-${cat}-${wl}-${fac}-${bud}-${ops}-${wlcat}-${faccat}-${lastDep}-${lastFac}-${lastCpt}-${budHash}`;
-    } catch(e) { return Date.now().toString(); }
-  }
-
-  // ── LOGIN PAGE CONTROL ───────────────────────────────────────
-  function hideLoginPage() {
-    // Remove auth guard
-    document.body.classList.remove('app-hidden');
-
-    // Restore app visibility
-    const main = document.querySelector('.main');
-    const nav  = document.querySelector('nav');
-    if (main) main.style.display = '';
-    if (nav)  nav.style.display  = '';
-
-    // Hide login page
-    const el = document.getElementById('fb-login-page');
-    if (el) el.style.display = 'none';
-  }
-
-  function showLoginPage() {
-    document.body.classList.add('app-hidden');
-
-    // Hide app content
-    const main = document.querySelector('.main');
-    const nav  = document.querySelector('nav');
-    if (main) main.style.display = 'none';
-    if (nav)  nav.style.display  = 'none';
-
-    // Show login page
-    const el = document.getElementById('fb-login-page');
-    if (el) el.style.display = 'flex';
-  }
-
-  // ── UI HELPERS ────────────────────────────────────────────────
-  function setLoggedIn(user) {
-    const login    = ui('fb-login-btn');
-    const block    = ui('fb-user-block');
-    const photo    = ui('fb-user-photo');
-    const initials = ui('fb-initials');
-    const name     = ui('fb-user-name');
-    const menuName = ui('fb-menu-name');
-    const sync     = ui('fb-menu-sync');
-
-    const initial = (user.displayName || user.email || '?').charAt(0).toUpperCase();
-    if (photo) {
-      if (user.photoURL) {
-        photo.src = user.photoURL;
-        photo.style.display = 'block';
-        if (initials) initials.style.display = 'none';
-      } else {
-        photo.style.display = 'none';
-        if (initials) { initials.textContent = initial; initials.style.display = 'flex'; }
-      }
-    }
-    const displayName = user.displayName || user.email;
-    if (name)     name.textContent     = displayName;
-    if (menuName) menuName.textContent = displayName;
-    if (sync)     sync.textContent     = '☁️ Connecté';
-    if (login)    login.style.display  = 'none';
-    if (block)    block.style.display  = 'flex';
-  }
-
-  function setLoggedOut() {
-    const login = ui('fb-login-btn');
-    const block = ui('fb-user-block');
-    const dd    = ui('fb-dropdown');
-    if (login) login.style.display = 'flex';
-    if (block) block.style.display = 'none';
-    if (dd)    dd.classList.remove('show');
-  }
-
-  function setSyncStatus(msg, revertMs = 0) {
-    const el   = ui('fb-menu-sync');
-    const ind  = ui('autosave-indicator');
-    const txt  = ui('autosave-text');
-    const dot  = ui('autosave-dot');
-
-    if (el) el.textContent = msg;
-
-    // Topbar indicator
-    if (ind && _currentUser) {
-      if (msg.includes('⏳') || msg.includes('🔄')) {
-        ind.style.display = 'flex';
-        if (dot) dot.style.background = '#f6a623';
-        if (txt) txt.textContent = 'Sauvegarde...';
-      } else if (msg.includes('✅') || msg.includes('Sauvegardé')) {
-        ind.style.display = 'flex';
-        if (dot) dot.style.background = 'var(--green,#1d9e75)';
-        if (txt) txt.textContent = 'Sauvegardé';
-        setTimeout(() => { if (ind) ind.style.display = 'none'; }, 2000);
-      } else {
-        if (ind) ind.style.display = 'none';
-      }
-    }
-
-    if (revertMs > 0) setTimeout(() => {
-      if (el) el.textContent = '☁️ Connecté';
-    }, revertMs);
-  }
-
-  // ── LOAD FROM FIRESTORE (1 read per login) ────────────────────
-  async function loadData(user) {
-    setSyncStatus('⏳ Chargement...');
-    try {
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      if (snap.exists()) {
-        const data   = snap.data();
-        const remote = data.state;
-        if (remote && remote.version === 2) {
-          remote.version = 2;
-          _lastSave = data.updatedAt || 0;
-          _lastHash = hashState(); // Set hash AFTER applying
-          if (typeof window._applyState === 'function') {
-            window._applyState(remote);
-          }
-          _lastHash = hashState(); // Update hash to match loaded state
-          const count = remote.depenses?.length || 0;
-          setSyncStatus(count > 0 ? `☁️ ${count} dépenses` : '☁️ Connecté', 3000);
-        } else if (remote && Array.isArray(remote.depenses)) {
-          remote.version = 2;
-          _lastSave = data.updatedAt || 0;
-          if (typeof window._applyState === 'function') {
-            window._applyState(remote);
-          }
-          _lastHash = hashState();
-          setSyncStatus('☁️ Connecté', 2000);
-        } else {
-          setSyncStatus('☁️ Connecté');
-        }
-      } else {
-        setSyncStatus('☁️ Connecté');
-      }
-    } catch(e) {
-      console.error('[Firebase] Load error:', e);
-      setSyncStatus('⚠️ Erreur chargement');
-    }
-  }
-
-  // ── SAVE TO FIRESTORE (debounced + hash check) ─────────────────
-  async function saveData(user) {
-    if (!user || _saving) return;
-
-    // ✅ HASH CHECK: skip if nothing changed
-    const currentHash = hashState();
-    const forceSave = window._allowEmptySave || 
-                      (window._lastForceSave && Date.now() - window._lastForceSave < 5000);
-    if (currentHash === _lastHash && !forceSave) {
-      setSyncStatus('☁️ Connecté'); // already up to date
-      return;
-    }
-    window._lastForceSave = null; // reset
-
-    const depCount = window.state?.depenses?.length || 0;
-    const cptCount = window.state?.comptes?.length  || 0;
-
-    if (depCount === 0 && cptCount === 0 && !window._allowEmptySave) {
-      setSyncStatus('⚠️ State vide');
-      return;
-    }
-    window._allowEmptySave = false;
-
-    _saving = true;
-    const now = Date.now();
-    _lastSave = now;
-    _lastHash = currentHash; // Update hash before save
-
-    try {
-      await setDoc(
-        doc(db, 'users', user.uid),
-        { state: window.state, updatedAt: now }
-      );
-      setSyncStatus('✅ Sauvegardé', 2000);
-      _pendingSave = false;
-    } catch(e) {
-      console.error('[Firebase] Save error:', e);
-      setSyncStatus('⚠️ Erreur: ' + e.message);
-      _lastHash = ''; // Reset hash so next save retries
-    } finally {
-      _saving = false;
-    }
-  }
-
-  // ── AUTH STATE ────────────────────────────────────────────────
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      _currentUser = user;
-      window._fbUser = user;
-      setLoggedIn(user);
-      hideLoginPage();
-      await loadData(user);
-      // ✅ NO snapshot listener — saves reads quota
-      // Data syncs only when user explicitly saves or auto-save triggers
-    } else {
-      _currentUser = null;
-      window._fbUser = null;
-      setLoggedOut();
-      if (typeof defaultState === 'function') {
-        const empty = defaultState();
-        Object.keys(window.state).forEach(k => delete window.state[k]);
-        Object.assign(window.state, empty);
-        if (typeof renderAll === 'function') renderAll();
-      }
-      showLoginPage();
-    }
-  });
-
-  getRedirectResult(auth).catch(() => {});
-
-  // ── GLOBAL FUNCTIONS ──────────────────────────────────────────
-  window._fbUser      = null;
-  window._allowEmptySave = false;
-
-  window._fbSaveData = async function() {
-    if (_currentUser) await saveData(_currentUser);
-  };
-
-  window._fbLoadData = async function() {
-    if (_currentUser) await loadData(_currentUser);
-  };
-
-  window._fbLogin = async function() {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      await signInWithPopup(auth, provider);
-    } catch(e) {
-      if (e.code === 'auth/popup-blocked') {
-        await signInWithRedirect(auth, provider);
-      } else if (e.code !== 'auth/cancelled-popup-request' &&
-                 e.code !== 'auth/popup-closed-by-user') {
-        const t = document.createElement('div');
-        t.style.cssText = `position:fixed;top:70px;left:50%;transform:translateX(-50%);
-          background:#e24b4a;color:white;padding:10px 20px;border-radius:10px;
-          font-size:13px;font-weight:500;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.4)`;
-        t.textContent = '❌ ' + (e.message || 'Erreur connexion');
-        document.body.appendChild(t);
-        setTimeout(() => t.remove(), 4000);
-      }
-    }
-  };
-
-  window._fbLogout = async function() {
-    const dd = ui('fb-dropdown');
-    if (dd) dd.classList.remove('show');
-    if (confirm('Se déconnecter de FinTrack ?')) {
-      await signOut(auth);
-    }
-  };
-
-</script>
-
-
-  <script>
-    // Show login page IMMEDIATELY — before Firebase loads
-    // This prevents black screen
-    document.addEventListener("DOMContentLoaded", function() {
-      document.body.classList.add("app-hidden");
-
-      // Create login page right away
-      var lp = document.createElement("div");
-      lp.id = "fb-login-page";
-      lp.style.cssText = "position:fixed;inset:0;z-index:9998;background:#0b0f1c;display:flex;align-items:center;justify-content:center;";
-      lp.innerHTML = '<div style="text-align:center;padding:40px 32px;background:#141926;border-radius:20px;border:1px solid #1e2640;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:340px;width:90%;">'
-        + '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1a3a8f,#3d72d8);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:white;letter-spacing:-1px">FT</div>'
-        + '<div style="font-size:22px;font-weight:800;color:#e4eaf6;margin-bottom:6px">FinTrack</div>'
-        + '<div style="font-size:13px;color:#7080a0;margin-bottom:28px;line-height:1.5">Connectez-vous pour accéder<br>à vos finances personnelles</div>'
-        + '<button id="fb-login-early-btn" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;background:white;color:#3c3c3c;border:1px solid #dadce0;border-radius:12px;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.15);">'
-        + '<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.84-1.6 2.4v2h2.6c1.52-1.4 2.4-3.47 2.4-5.92 0-.57-.05-1.12-.17-1.64z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2c-.71.48-1.63.76-2.7.76-2.07 0-3.83-1.4-4.46-3.27H1.86v2.07C3.18 15.06 5.89 17 8.98 17z"/><path fill="#FBBC05" d="M4.52 10.55c-.16-.48-.25-.99-.25-1.55s.09-1.07.25-1.55V5.38H1.86A8.01 8.01 0 0 0 1 9c0 1.29.31 2.51.86 3.62l2.66-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.22.4 3.04 1.2l2.27-2.27C12.95 1.89 11.14 1 8.98 1 5.89 1 3.18 2.94 1.86 5.38l2.66 2.07c.63-1.87 2.39-3.27 4.46-3.27z"/></svg>'
-        + 'Continuer avec Google</button>'
-        + '<div style="font-size:11px;color:#4f5f7a;margin-top:16px;line-height:1.5">Vos données sont privées et sécurisées.<br>Chaque utilisateur a son propre espace.</div>'
-        + '</div>';
-      document.body.appendChild(lp);
-
-      // Wire button — waits for fbLogin to be defined
-      document.getElementById("fb-login-early-btn").addEventListener("click", function() {
-        if (typeof fbLogin === "function") fbLogin();
-        else if (typeof window._fbLogin === "function") window._fbLogin();
-        else setTimeout(function() {
-          if (typeof fbLogin === "function") fbLogin();
-          else if (typeof window._fbLogin === "function") window._fbLogin();
-        }, 1000);
-      });
-    });
-  </script>
 </head>
 <body>
 <!-- LOADING SCREEN -->
@@ -1184,6 +1158,33 @@ input[type=file]{display:none}
 
 <div class="overlay-backdrop" id="nav-overlay"></div>
 
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+  <button class="mob-tab active" data-page="dashboard"><span class="mob-icon">🏠</span><span>Accueil</span></button>
+  <button class="mob-tab" data-page="depenses"><span class="mob-icon">💸</span><span>Dépenses</span></button>
+  <button class="mob-tab" data-page="analyses"><span class="mob-icon">📊</span><span>Analyses</span></button>
+  <button class="mob-tab" data-page="comptes"><span class="mob-icon">💳</span><span>Comptes</span></button>
+  <button class="mob-tab" id="mob-more-trigger"><span class="mob-icon">⋯</span><span>Plus</span></button>
+</nav>
+
+<!-- MORE DRAWER -->
+<div class="mob-more-backdrop" id="mob-more-backdrop"></div>
+<div class="mob-more-sheet" id="mob-more-sheet">
+  <div class="mob-more-handle"></div>
+  <div class="mob-more-title">Plus d'options</div>
+  <button class="mob-more-btn" data-page="budgets"><span class="mob-more-icon">🎯</span> Budgets</button>
+  <button class="mob-more-btn" data-page="factures"><span class="mob-more-icon">🧾</span> Factures</button>
+  <button class="mob-more-btn" data-page="wishlist"><span class="mob-more-icon">🛒</span> Liste d'achats</button>
+  <button class="mob-more-btn" data-page="saving-planner"><span class="mob-more-icon">🧮</span> Planificateur épargne</button>
+  <button class="mob-more-btn" data-page="referentiels"><span class="mob-more-icon">👥</span> Référentiels</button>
+  <button class="mob-more-btn" data-page="fichiers"><span class="mob-more-icon">📁</span> Fichiers &amp; Import</button>
+  <hr style="border:none;border-top:1px solid var(--border);margin:8px 0"/>
+  <button class="mob-more-btn" id="mob-save-btn"><span class="mob-more-icon">💾</span> Enregistrer</button>
+</div>
+
+<!-- FAB: Quick add expense -->
+<button class="fab" id="btn-fab" title="Ajouter une dépense">+</button>
+
 <nav class="nav" id="sidebar">
   <div class="nav-header">
     <div class="nav-logo-icon">FT</div>
@@ -1197,7 +1198,7 @@ input[type=file]{display:none}
     <div class="nav-section">Gestion</div>
     <button class="nav-btn" data-page="comptes"><span class="nav-icon">💳</span><span class="nav-label">Comptes</span></button>
     <button class="nav-btn" data-page="budgets"><span class="nav-icon">🎯</span><span class="nav-label">Budgets</span></button>
-    <button class="nav-btn" data-page="referentiels"><span class="nav-icon">⚙️</span><span class="nav-label">Paramètres</span></button>
+    <button class="nav-btn" data-page="referentiels"><span class="nav-icon">👥</span><span class="nav-label">Référentiels</span></button>
     <div class="nav-section">Données</div>
     <button class="nav-btn" data-page="fichiers"><span class="nav-icon">📁</span><span class="nav-label">Fichiers & Import</span></button>
     <div class="nav-section">Extra</div>
@@ -1206,8 +1207,18 @@ input[type=file]{display:none}
     <button class="nav-btn" data-page="saving-planner"><span class="nav-icon">🧮</span><span class="nav-label">Planificateur épargne</span></button>
   </div>
   <div class="nav-footer">
-    <button class="btn-save-nav" id="btn-save-local"><span class="nav-icon">💾</span><span class="nav-label">Enregistrer</span></button>
-    <div id="save-status"></div>
+    <!-- Bloc utilisateur Firebase -->
+    <div id="fb-user-block" style="display:none;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);background:var(--s2);border:1px solid var(--border2);cursor:pointer;width:100%;margin-bottom:6px" onclick="if(window._fbLogout) window._fbLogout()">
+      <img id="fb-user-photo" src="" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;display:none">
+      <span id="fb-initials" style="width:26px;height:26px;border-radius:50%;background:linear-gradient(140deg,var(--accent),var(--purple));color:#fff;font-size:12px;font-weight:700;display:none;align-items:center;justify-content:center;flex-shrink:0"></span>
+      <span id="fb-user-name" style="font-size:12px;color:var(--text);font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <span style="font-size:11px;color:var(--muted2)">↩</span>
+    </div>
+    <button id="fb-login-btn" onclick="if(window._fbLogin) window._fbLogin()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 12px;width:100%;background:var(--accent);border:none;border-radius:var(--r);color:#fff;font-family:var(--font);font-size:12.5px;font-weight:500;cursor:pointer;margin-bottom:6px">
+      ☁️ Connexion Google
+    </button>
+    <div id="fb-menu-sync" style="font-size:11px;color:var(--muted2);text-align:center;padding:0 10px 4px;min-height:16px"></div>
+    <div id="save-status" style="font-size:11px;color:var(--green);text-align:center;padding:4px 4px 0;min-height:18px"></div>
   </div>
 </nav>
 
@@ -1215,130 +1226,31 @@ input[type=file]{display:none}
   <header class="topbar">
     <div class="topbar-left">
       <button class="hamburger" id="btn-hamburger">☰</button>
-      <div>
+      <!-- Mobile logo (hidden on desktop) -->
+      <div class="mob-logo" style="display:none;align-items:center;gap:8px">
+        <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(140deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">FT</div>
+        <span style="font-size:15px;font-weight:700;letter-spacing:-.3px">Fin<em style="color:var(--accent);font-style:normal">Track</em></span>
+      </div>
+      <div class="topbar-title-group">
         <div class="topbar-title" id="topbar-title">Dashboard</div>
         <div class="topbar-desc" id="topbar-desc">Vue d'ensemble de vos finances</div>
       </div>
     </div>
-    <div class="topbar-right" style="display:flex;align-items:center;gap:10px">
-      <!-- Auto-save indicator -->
-      <div id="autosave-indicator" style="
-        font-size:11px; color:var(--muted2);
-        display:none; align-items:center; gap:4px;
-        transition:opacity .3s;
-      ">
-        <span id="autosave-dot" style="
-          width:6px; height:6px; border-radius:50%;
-          background:var(--green,#1d9e75); display:inline-block;
-          animation: pulse 1.5s infinite;
-        "></span>
-        <span id="autosave-text">Sauvegarde...</span>
+    <div class="topbar-right">
+      <!-- Indicateur autosave Firebase -->
+      <div id="autosave-indicator" style="display:none;align-items:center;gap:5px;font-size:11.5px;color:var(--muted2)">
+        <span id="autosave-dot" style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;display:inline-block"></span>
+        <span id="autosave-text">Sauvegardé</span>
       </div>
-      <style>
-        @keyframes pulse {
-          0%,100% { opacity:1; }
-          50%      { opacity:.3; }
-        }
-      </style>
+      <button id="btn-save-local-top" title="Enregistrer"
+        style="display:none;border:1px solid var(--border2);background:var(--s2);border-radius:var(--r);padding:6px 10px;cursor:pointer;font-size:15px;color:var(--muted2);transition:all .15s">
+        💾
+      </button>
       <button id="btn-theme-toggle" title="Thème clair / sombre"
         style="border:1px solid var(--border2);background:var(--s2);border-radius:var(--r);padding:6px 10px;cursor:pointer;font-size:15px;color:var(--muted2);transition:all .15s">
         🌙
       </button>
       <span id="csv-link-status" style="font-size:11.5px;color:var(--muted2)"></span>
-
-      <!-- ── AUTH ZONE ── -->
-
-      <!-- Non connecté: bouton Google pill -->
-      <button id="fb-login-btn" onclick="fbLogin()" style="
-        display:flex; align-items:center; gap:7px;
-        padding:6px 14px 6px 10px;
-        background:#fff; color:#3c3c3c;
-        border:1px solid #dadce0; border-radius:99px;
-        cursor:pointer; font-size:12px; font-weight:600;
-        font-family:inherit; white-space:nowrap;
-        box-shadow:0 1px 4px rgba(0,0,0,.2);
-        transition:box-shadow .15s;
-      " onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.3)'"
-         onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.2)'">
-        <svg width="16" height="16" viewBox="0 0 18 18">
-          <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.84-1.6 2.4v2h2.6c1.52-1.4 2.4-3.47 2.4-5.92 0-.57-.05-1.12-.17-1.64z"/>
-          <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2c-.71.48-1.63.76-2.7.76-2.07 0-3.83-1.4-4.46-3.27H1.86v2.07C3.18 15.06 5.89 17 8.98 17z"/>
-          <path fill="#FBBC05" d="M4.52 10.55c-.16-.48-.25-.99-.25-1.55s.09-1.07.25-1.55V5.38H1.86A8.01 8.01 0 0 0 1 9c0 1.29.31 2.51.86 3.62l2.66-2.07z"/>
-          <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.22.4 3.04 1.2l2.27-2.27C12.95 1.89 11.14 1 8.98 1 5.89 1 3.18 2.94 1.86 5.38l2.66 2.07c.63-1.87 2.39-3.27 4.46-3.27z"/>
-        </svg>
-        Se connecter
-      </button>
-
-      <!-- Connecté: avatar + nom + dropdown -->
-      <div id="fb-user-block" style="display:none; position:relative;">
-        <button onclick="document.getElementById('fb-dropdown').classList.toggle('show')" style="
-          display:flex; align-items:center; gap:8px;
-          padding:4px 10px 4px 4px;
-          background:var(--s1); border:1px solid var(--border2);
-          border-radius:99px; cursor:pointer;
-          box-shadow:0 1px 4px rgba(0,0,0,.2);
-          transition:box-shadow .15s;
-        " onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.35)'"
-           onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.2)'">
-          <!-- Avatar cercle -->
-          <div id="fb-avatar-wrap" style="
-            width:28px; height:28px; border-radius:50%;
-            background:linear-gradient(135deg,#1a3a8f,#3d72d8);
-            border:2px solid #3d72d8; overflow:hidden; flex-shrink:0;
-            display:flex; align-items:center; justify-content:center;
-          ">
-            <img id="fb-user-photo" src="" alt=""
-              style="width:100%;height:100%;object-fit:cover;display:none"/>
-            <span id="fb-initials" style="
-              font-size:11px;font-weight:700;color:white;
-            ">?</span>
-          </div>
-          <!-- Nom -->
-          <span id="fb-user-name" style="
-            font-size:12px; font-weight:600; color:var(--text);
-            max-width:110px; overflow:hidden;
-            text-overflow:ellipsis; white-space:nowrap;
-          "></span>
-          <!-- Chevron -->
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="flex-shrink:0;opacity:.5">
-            <path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-
-        <!-- Dropdown -->
-        <div id="fb-dropdown" style="
-          display:none; position:absolute; top:calc(100% + 8px); right:0;
-          background:var(--s1); border:1px solid var(--border2);
-          border-radius:12px; min-width:190px;
-          box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:9999;
-          overflow:hidden;
-        ">
-          <!-- Header user info -->
-          <div style="padding:12px 14px; border-bottom:1px solid var(--border);">
-            <div id="fb-menu-name" style="font-size:13px;font-weight:600;color:var(--text)"></div>
-            <div id="fb-menu-sync" style="font-size:11px;color:var(--muted2);margin-top:2px">☁️ Connecté</div>
-          </div>
-          <!-- Déconnecter -->
-          <button onclick="fbLogout()" style="
-            display:flex; align-items:center; gap:10px;
-            width:100%; padding:11px 14px;
-            background:transparent; border:none;
-            cursor:pointer; font-size:13px; font-weight:500;
-            color:var(--red,#e24b4a); font-family:inherit;
-            transition:background .15s;
-          " onmouseover="this.style.background='rgba(226,75,74,.08)'"
-             onmouseout="this.style.background='transparent'">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            Se déconnecter
-          </button>
-        </div>
-      </div>
-
     </div>
   </header>
 
@@ -1347,126 +1259,109 @@ input[type=file]{display:none}
 
     <!-- DASHBOARD -->
     <section id="page-dashboard" class="page active">
-      <!-- Onboarding — shown only when no data -->
-      <div id="onboarding-banner" style="display:none;
-        background:linear-gradient(135deg,var(--accent-d),var(--s2));
-        border:1.5px solid var(--accent);border-radius:16px;
-        padding:20px 22px;margin-bottom:18px">
-        <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
-          <div style="font-size:36px">👋</div>
-          <div style="flex:1;min-width:200px">
-            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">
-              Bienvenue sur FinTrack !
-            </div>
-            <div style="font-size:13px;color:var(--muted2);margin-bottom:14px;line-height:1.5">
-              Commencez en 3 étapes simples pour gérer vos finances.
-            </div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <div class="onb-step" id="onb-1" onclick="document.querySelector('[data-page=comptes]').click()">
-                <span class="onb-num">1</span>
-                <span class="onb-text">💳 Ajouter un compte <span style="color:var(--muted2)">(ex: Compte courant)</span></span>
-                <span class="onb-arrow">→</span>
-              </div>
-              <div class="onb-step" id="onb-2" onclick="document.querySelector('[data-page=referentiels]').click()">
-                <span class="onb-num">2</span>
-                <span class="onb-text">🏷️ Créer vos catégories <span style="color:var(--muted2)">(ex: Alimentation, Transport)</span></span>
-                <span class="onb-arrow">→</span>
-              </div>
-              <div class="onb-step" id="onb-3" onclick="document.querySelector('[data-page=depenses]').click()">
-                <span class="onb-num">3</span>
-                <span class="onb-text">💸 Ajouter votre première dépense</span>
-                <span class="onb-arrow">→</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
       <div id="alerts-dashboard" class="alerts"></div>
-      <div class="kpi-grid" id="dash-cards"></div>
+
+      <!-- Hero card: total this month -->
+      <div class="dash-hero" id="dash-hero">
+        <div class="dash-hero-label">💳 Dépenses — Ce mois</div>
+        <div class="dash-hero-amount" id="dh-amount">—</div>
+        <div class="dash-hero-sub" id="dh-sub">Chargement…</div>
+        <div class="dash-hero-pills" id="dh-pills"></div>
+      </div>
+
+      <!-- Quick stats 2×2 grid -->
+      <div class="dash-section-title">📈 Aperçu rapide</div>
+      <div class="dash-stat-row" id="dash-stat-row"></div>
+
+      <!-- Accounts horizontal scroll -->
+      <div class="dash-section-title">💳 Mes comptes</div>
+      <div class="dash-accounts-scroll" id="dash-accounts-scroll"></div>
+
+      <!-- Budget indicators -->
       <div id="budget-indicators"></div>
+
+      <!-- Charts -->
+      <div class="dash-section-title">📊 Graphiques</div>
       <div class="chart-grid">
         <div class="chart-box"><h3>Dépenses du mois par catégorie</h3><div class="chart-wrap h220"><canvas id="dash-chart-month-cat"></canvas></div></div>
         <div class="chart-box"><h3>Soldes des comptes</h3><div class="chart-wrap h220"><canvas id="dash-chart-comptes"></canvas></div></div>
       </div>
+
+      <!-- Keep the old kpi-grid hidden for JS compatibility -->
+      <div class="kpi-grid" id="dash-cards" style="display:none"></div>
     </section>
 
     <!-- DEPENSES -->
     <section id="page-depenses" class="page">
       <div class="panel">
-        <div class="panel-title"><span class="icon">➕</span> Ajouter une dépense</div>
-        <p class="panel-subtitle">Le montant sera débité du compte sélectionné</p>
+        <div class="panel-title"><span class="icon">➕</span> Nouvelle dépense</div>
 
-        <!-- ── ESSENTIAL FIELDS (always visible) ────────── -->
-        <div class="dep-essential">
-
-          <!-- Big amount input -->
-          <div class="dep-amount-row">
-            <div class="field amount-field required" style="flex:1">
-              <input type="number" id="add-montant" min="0" step="0.001"
-                placeholder="0.000" required autocomplete="off"
-                style="font-size:28px;font-weight:800;text-align:center;padding:14px 52px 14px 14px;height:62px"/>
-              <span class="amount-currency" style="font-size:15px;right:16px">TND</span>
-            </div>
+        <!-- Amount — hero field -->
+        <div class="form-section">
+          <div class="field-icon field-amount">
+            <label><span class="lbl-icon">💰</span> Montant (TND)</label>
+            <input type="number" id="add-montant" min="0" step="0.001" placeholder="0.000" required inputmode="decimal"/>
           </div>
+        </div>
 
-          <!-- Quick amounts -->
-          <div class="quick-chips" id="quick-amounts" style="justify-content:center;margin:8px 0 12px">
-            <button type="button" class="quick-chip" data-amount="5">5</button>
-            <button type="button" class="quick-chip" data-amount="10">10</button>
-            <button type="button" class="quick-chip" data-amount="20">20</button>
-            <button type="button" class="quick-chip" data-amount="50">50</button>
-            <button type="button" class="quick-chip" data-amount="100">100</button>
-            <button type="button" class="quick-chip" data-amount="200">200</button>
-          </div>
-
-          <!-- 3 essential fields in a row -->
-          <div class="form-grid" style="grid-template-columns:repeat(3,1fr);gap:10px">
-            <div class="field required">
-              <label>📅 Date</label>
+        <!-- Core info -->
+        <div class="form-section">
+          <div class="form-section-title">📋 Informations</div>
+          <div class="form-grid" style="gap:10px">
+            <div class="field-icon">
+              <label><span class="lbl-icon">📅</span> Date</label>
               <input type="date" id="add-date" required/>
             </div>
-            <div class="field required">
-              <label>🏷️ Catégorie</label>
+            <div class="field-icon" style="grid-column:1/-1">
+              <label><span class="lbl-icon">🏷️</span> Catégorie</label>
               <select id="add-categorie"></select>
+              <!-- Sub-category picker: shown when parent has sub-cats -->
+              <div class="subcat-picker" id="add-subcat-picker">
+                <span class="subcat-picker-label">↳ Sous-catégorie</span>
+                <div class="subcat-chips" id="add-subcat-chips"></div>
+                <div class="subcat-add-row">
+                  <input class="subcat-add-inp" id="add-subcat-new-inp" placeholder="Nouvelle sous-catégorie…" autocomplete="off"/>
+                  <button class="subcat-add-btn" id="add-subcat-new-btn">+ Ajouter</button>
+                </div>
+              </div>
             </div>
-            <div class="field required">
-              <label>💳 Compte</label>
+            <div class="field-icon">
+              <label><span class="lbl-icon">💳</span> Compte débité</label>
               <select id="add-compte"></select>
             </div>
-          </div>
-        </div>
-
-        <!-- ── ADVANCED FIELDS (collapsible) ──────────── -->
-        <button type="button" id="btn-dep-advanced" onclick="toggleDepAdvanced()" style="
-          display:flex;align-items:center;gap:6px;
-          background:transparent;border:none;cursor:pointer;
-          font-size:12px;color:var(--muted2);font-family:inherit;
-          padding:6px 0;margin:4px 0 0;width:100%;
-        ">
-          <span id="dep-advanced-icon">▶</span>
-          <span>Options supplémentaires (personne, description, tags…)</span>
-        </button>
-
-        <div id="dep-advanced-fields" style="display:none">
-          <div class="form-grid" style="margin-top:10px">
-            <div class="field">
-              <label>👤 Personne</label>
+            <div class="field-icon">
+              <label><span class="lbl-icon">👤</span> Personne</label>
               <select id="add-personne"></select>
             </div>
-            <div class="field">
-              <label>📝 Description</label>
-              <input type="text" id="add-desc" placeholder="Ex: Restaurant midi…"/>
+            <div class="field-icon">
+              <label><span class="lbl-icon">📝</span> Description</label>
+              <input type="text" id="add-desc" placeholder="Libellé de la dépense"/>
+            </div>
+            <div class="field-icon">
+              <label><span class="lbl-icon">💳</span> Moyen de paiement</label>
+              <input type="text" id="add-moyen" placeholder="Carte, virement, espèces…"/>
             </div>
           </div>
-          <div class="form-grid">
-            <div class="field">
-              <label>💳 Moyen de paiement</label>
-              <input type="text" id="add-moyen" placeholder="Carte, espèces, virement…"/>
-            </div>
-            <div class="field"><label>🏷️ Tags</label><div class="tag-input-wrap" id="add-tags-wrap"><input type="text" id="add-tags-input" placeholder="tag + Entrée"/></div></div>
-          <div class="field-check"><input type="checkbox" id="add-recurrent"/><label for="add-recurrent" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--muted2)">Récurrente mensuelle</label></div>
         </div>
-        <button class="btn btn-primary" id="btn-add-depense">Ajouter la dépense</button>
+
+        <!-- Tags & options -->
+        <div class="form-section">
+          <div class="form-section-title">🔖 Options</div>
+          <div class="field-icon" style="margin-bottom:12px">
+            <label><span class="lbl-icon">🏷️</span> Tags</label>
+            <div class="tag-input-wrap" id="add-tags-wrap"><input type="text" id="add-tags-input" placeholder="Ajouter un tag puis Entrée…"/></div>
+          </div>
+          <div class="field-check" style="padding-top:0;gap:10px">
+            <input type="checkbox" id="add-recurrent"/>
+            <label for="add-recurrent" style="text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);font-weight:500">
+              🔁 Dépense récurrente mensuelle
+            </label>
+          </div>
+        </div>
+
+        <button class="btn-submit-lg" id="btn-add-depense">
+          ✅ Enregistrer la dépense
+        </button>
       </div>
       <div class="filters">
         <div class="field"><label>Recherche</label><input type="search" id="f-text" placeholder="texte, catégorie…"/></div>
@@ -1499,8 +1394,6 @@ input[type=file]{display:none}
             <tbody id="tbody-depenses"></tbody>
           </table>
         </div>
-        <!-- Mobile card view — shown instead of table on small screens -->
-        <div id="dep-cards-mobile" class="dep-cards-list"></div>
         <div class="pag-bar" id="dep-pagination-nav"></div>
         <div style="font-size:11.5px;color:var(--muted);text-align:right;margin-top:4px" id="dep-page-info"></div>
       </div>
@@ -1555,32 +1448,13 @@ input[type=file]{display:none}
             <tbody id="tbody-comptes"></tbody></table>
           </div>
           <hr class="sep"/>
-          <div class="panel-title" style="margin-bottom:4px"><span class="icon">➕</span> Nouveau compte</div>
-          <p class="panel-subtitle">Choisissez le type selon l'usage : Courant (quotidien), Épargne (long terme), Espèces</p>
+          <div class="panel-title" style="margin-bottom:12px"><span class="icon">➕</span> Nouveau compte</div>
           <div class="form-grid" style="max-width:600px">
-            <div class="field required">
-              <label>Nom du compte</label>
-              <input type="text" id="new-compte-nom" placeholder="ex: Banque principale, Livret A…"/>
-            </div>
-            <div class="field required">
-              <label>Type de compte</label>
-              <select id="new-compte-type">
-                <option value="courant">💳 Courant — dépenses quotidiennes</option>
-                <option value="epargne">🏦 Épargne — économies long terme</option>
-                <option value="especes">💵 Espèces — argent liquide</option>
-              </select>
-              <div class="field-hint">💡 Choisissez selon où vous gardez cet argent</div>
-            </div>
-            <div class="field">
-              <label>Solde initial (TND)</label>
-              <div class="field-icon">
-                <span class="field-icon-el">💰</span>
-                <input type="number" id="new-compte-solde" min="0" step="0.001" value="0"/>
-              </div>
-              <div class="field-hint">💡 Montant actuel dans ce compte</div>
-            </div>
+            <div class="field"><label>Nom</label><input type="text" id="new-compte-nom" placeholder="ex. Livret A"/></div>
+            <div class="field"><label>Type</label><select id="new-compte-type"><option value="courant">Courant</option><option value="epargne">Épargne</option><option value="especes">Espèces</option></select></div>
+            <div class="field"><label>Solde initial (TND)</label><input type="number" id="new-compte-solde" min="0" step="0.001" value="0"/></div>
           </div>
-          <button class="btn btn-primary btn-submit-main" id="btn-add-compte">Ajouter le compte</button>
+          <button class="btn btn-primary" id="btn-add-compte">Ajouter le compte</button>
         </div>
         <div class="panel">
           <div class="panel-title"><span class="icon">🔄</span> Opérations manuelles</div>
@@ -1709,21 +1583,12 @@ input[type=file]{display:none}
         <div class="panel-title"><span class="icon">🌍</span> Budget mensuel global</div>
         <p class="hint">Compare les dépenses du mois civil en cours à ce plafond. Laissez 0 pour désactiver.</p>
         <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
-          <div class="field" style="max-width:280px">
-              <label>Budget mensuel maximum (TND)</label>
-              <div class="field-icon">
-                <span class="field-icon-el">🎯</span>
-                <input type="number" id="budget-global" min="0" step="1" placeholder="ex: 1500"/>
-              </div>
-              <div class="field-hint" id="budget-global-hint">💡 Montant total que vous ne voulez pas dépasser par mois</div>
-            </div>
-          <button class="btn btn-primary" id="btn-save-budget-global">💾 Appliquer</button>
+          <div class="field" style="max-width:200px"><label>Plafond (TND / mois)</label><input type="number" id="budget-global" min="0" step="1"/></div>
+          <button class="btn btn-primary" id="btn-save-budget-global">Appliquer</button>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-title"><span class="icon">🎯</span> Budgets par catégorie
-          <span style="font-size:11px;font-weight:400;color:var(--muted2);margin-left:8px">Fixez un plafond par catégorie pour ce mois</span>
-        </div>
+        <div class="panel-title"><span class="icon">🎯</span> Budgets par catégorie (mois en cours)</div>
         <p class="hint">Laissez vide pour ne pas plafonner une catégorie.</p>
         <div id="budgets-par-cat"></div>
       </div>
@@ -1742,12 +1607,33 @@ input[type=file]{display:none}
           <ul class="ref-list" id="list-personnes"></ul>
         </div>
         <div class="panel">
-          <div class="panel-title"><span class="icon">🏷️</span> Catégories dépenses</div>
-          <div class="form-grid" style="grid-template-columns:1fr auto">
-            <div class="field"><label>Nom</label><input type="text" id="new-cat-nom" placeholder="ex. Loisirs"/></div>
+          <div class="panel-title"><span class="icon">🏷️</span> Catégories &amp; Sous-catégories</div>
+          <p class="hint">Ajoutez des catégories principales, puis créez des sous-catégories pour plus de détail.</p>
+
+          <!-- Add parent category -->
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">➕ Nouvelle catégorie principale</div>
+          <div class="form-grid" style="grid-template-columns:1fr auto;margin-bottom:16px">
+            <div class="field"><label>Nom</label><input type="text" id="new-cat-nom" placeholder="ex. Loisirs, Alimentation…"/></div>
             <button class="btn btn-primary" id="btn-add-categorie" style="align-self:flex-end">Ajouter</button>
           </div>
-          <ul class="ref-list" id="list-categories"></ul>
+
+          <!-- Add sub-category -->
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:8px">↳ Nouvelle sous-catégorie</div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr auto;margin-bottom:20px">
+            <div class="field">
+              <label>Catégorie parente</label>
+              <select id="new-subcat-parent"></select>
+            </div>
+            <div class="field">
+              <label>Nom de la sous-catégorie</label>
+              <input type="text" id="new-subcat-nom" placeholder="ex. Restaurant, Cinéma…"/>
+            </div>
+            <button class="btn btn-primary" id="btn-add-subcat" style="align-self:flex-end">Ajouter</button>
+          </div>
+
+          <!-- Tree list -->
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">📋 Toutes les catégories</div>
+          <div id="list-categories"></div>
         </div>
       </div>
 
@@ -1772,8 +1658,36 @@ input[type=file]{display:none}
 
     <!-- FICHIERS -->
     <section id="page-fichiers" class="page">
+
+      <!-- ☁️ FIREBASE SYNC PANEL -->
+      <div class="panel" id="fb-sync-panel">
+        <div class="panel-title"><span class="icon">☁️</span> Synchronisation Firebase</div>
+        <p class="hint">Vos données sont automatiquement synchronisées sur Firebase après chaque modification. Utilisez les boutons ci-dessous pour forcer une action manuelle.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+          <button class="btn btn-primary" id="btn-fb-force-save" style="gap:8px">
+            ☁️ Sauvegarder maintenant
+          </button>
+          <button class="btn" id="btn-fb-force-load" style="gap:8px">
+            🔄 Recharger depuis Firebase
+          </button>
+        </div>
+        <div id="fb-sync-status" style="font-size:12.5px;color:var(--muted2);min-height:18px"></div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:12px;color:var(--muted2);margin-bottom:8px">
+            ☁️ <strong>Import Firebase :</strong> importez un fichier CSV — les données seront sauvegardées automatiquement sur Firebase après import.
+          </div>
+          <label class="file-drop-area" for="file-fb-import" style="margin-bottom:0">
+            <span class="drop-icon">📂</span>
+            <div class="drop-label">Importer CSV → Firebase</div>
+            <div class="drop-hint">Importe le CSV et sync immédiatement sur Firebase</div>
+            <input type="file" id="file-fb-import" accept=".csv,text/csv"/>
+          </label>
+          <span id="fb-import-hint" class="success-msg" style="display:none;margin-top:8px"></span>
+        </div>
+      </div>
+
       <div class="panel">
-        <div class="panel-title"><span class="icon">📥</span> Importer la base</div>
+        <div class="panel-title"><span class="icon">📥</span> Importer la base (local)</div>
         <p class="hint">Importez un fichier <code style="background:var(--s3);padding:1px 5px;border-radius:4px">database.csv</code> exporté précédemment pour restaurer toutes vos données.</p>
         <label class="file-drop-area" for="file-db-import">
           <span class="drop-icon">📂</span>
@@ -2079,262 +1993,76 @@ input[type=file]{display:none}
   </div>
 </div>
 
-
-  
-
-
-
-  <style>
-    #fb-dropdown.show { display:block !important; }
-  </style>
-  <!-- ═══ SAFE GLOBAL WRAPPERS (accessible depuis onclick HTML) ═══ -->
-  <script>
-    // These wrappers delegate to Firebase functions once loaded
-    // They handle the case where Firebase module hasn't loaded yet
-    function fbLogin() {
-      if (typeof window._fbLogin === 'function') {
-        window._fbLogin();
-      } else {
-        console.warn('Firebase not loaded yet');
-        setTimeout(fbLogin, 500);
-      }
-    }
-
-    function fbLogout() {
-      if (typeof window._fbLogout === 'function') {
-        window._fbLogout();
-      } else {
-        console.warn('Firebase not loaded yet');
-      }
-    }
-
-    function fbToggleMenu() {
-      const menu = document.getElementById('fb-menu');
-      if (menu) menu.classList.toggle('open');
-    }
-  </script>
-
-  <!-- Debug helper -->
-  <script>
-    window.checkFirebase = function() {
-      console.log("=== FINTRACK DEBUG ===");
-      console.log("User:", window._fbUser?.email || "NOT CONNECTED");
-      console.log("State depenses:", window.state?.depenses?.length || 0);
-      console.log("State comptes:", window.state?.comptes?.length || 0);
-      console.log("State categories:", window.state?.categories?.length || 0);
-      console.log("State wishlist:", window.state?.wishlist?.length || 0);
-      console.log("window.state === state:", window.state === window.state);
-      console.log("===================");
-      alert(
-        "User: " + (window._fbUser?.email || "NON CONNECTÉ") + "\n" +
-        "Dépenses: " + (window.state?.depenses?.length || 0) + "\n" +
-        "Comptes: " + (window.state?.comptes?.length || 0) + "\n" +
-        "Catégories: " + (window.state?.categories?.length || 0)
-      );
-    };
-    window.forceSave = async function() {
-      if (window._fbSaveData) {
-        alert("Sauvegarde en cours...");
-        await window._fbSaveData();
-        alert("✅ Sauvegardé sur Firebase!");
-      } else {
-        alert("❌ Firebase non connecté");
-      }
-    };
-    window.forceLoad = async function() {
-      if (window._fbLoadData) {
-        await window._fbLoadData();
-        alert("✅ Données rechargées depuis Firebase!");
-      }
-    };
-    console.log("🔧 Debug tools: checkFirebase(), forceSave(), forceLoad()");
-  </script>
-
-  <!-- ═══ MOBILE BOTTOM TAB BAR ═══ -->
-  <div id="mobile-tab-bar">
-    <div class="tab-items">
-      <button class="mob-tab active" data-mob-page="dashboard">
-        <span class="tab-icon">🏠</span>
-        <span class="tab-label">Accueil</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" data-mob-page="depenses">
-        <span class="tab-icon">💸</span>
-        <span class="tab-label">Dépenses</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" data-mob-page="comptes">
-        <span class="tab-icon">💳</span>
-        <span class="tab-label">Comptes</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" data-mob-page="budgets">
-        <span class="tab-icon">🎯</span>
-        <span class="tab-label">Budgets</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" id="mob-tab-more">
-        <span class="tab-icon">⋯</span>
-        <span class="tab-label">Plus</span>
-        <span class="tab-dot"></span>
-      </button>
-    </div>
-  </div>
-
-  <!-- FAB — Quick add expense -->
-  <button id="mobile-fab" aria-label="Ajouter une dépense">+</button>
-
-  <!-- MOBILE MORE SHEET -->
-  <div id="mob-more-sheet" style="
-    display:none; position:fixed; inset:0; z-index:300;
-    background:rgba(0,0,0,.6); backdrop-filter:blur(4px);
-  ">
-    <div style="
-      position:absolute; bottom:0; left:0; right:0;
-      background:var(--s1); border-radius:20px 20px 0 0;
-      padding:20px 16px calc(20px + env(safe-area-inset-bottom));
-      border-top:1px solid var(--border2);
-    ">
-      <div style="width:36px;height:4px;background:var(--border2);border-radius:99px;margin:0 auto 20px"></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-        <button class="mob-more-btn" data-mob-page="analyses">
-          <span style="font-size:24px">📊</span>
-          <span>Analyses</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="wishlist">
-          <span style="font-size:24px">🛍️</span>
-          <span>Wishlist</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="factures">
-          <span style="font-size:24px">📄</span>
-          <span>Factures</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="saving-planner">
-          <span style="font-size:24px">💰</span>
-          <span>Épargne</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="referentiels">
-          <span style="font-size:24px">👥</span>
-          <span>Référentiels</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="fichiers">
-          <span style="font-size:24px">📁</span>
-          <span>Fichiers</span>
-        </button>
-      </div>
-      <button onclick="closeMobMore()" style="
-        width:100%; margin-top:16px; padding:14px;
-        background:var(--s2); border:1px solid var(--border2);
-        border-radius:12px; color:var(--text);
-        font-size:14px; font-weight:600; cursor:pointer;
-      ">Fermer</button>
-    </div>
-  </div>
-
-  <style>
-    .mob-more-btn {
-      display:flex; flex-direction:column; align-items:center;
-      gap:6px; padding:14px 8px; border-radius:14px;
-      background:var(--s2); border:1px solid var(--border2);
-      cursor:pointer; font-size:12px; font-weight:600;
-      color:var(--text); transition:background .15s;
-      -webkit-tap-highlight-color:transparent;
-    }
-    .mob-more-btn:active { background:var(--s3); }
-  </style>
-
-  <script>
-    // ── MOBILE TAB BAR + FAB ───────────────────────────────────
-    
-    function closeMobMore() {
-      var sheet = document.getElementById('mob-more-sheet');
-      if (sheet) sheet.style.display = 'none';
-    }
-
-    function mobGoTo(page) {
-      // Use showPage directly if available, otherwise click nav btn
-      if (typeof showPage === 'function') {
-        showPage(page);
-      } else {
-        // Fallback: find and click any nav button for this page
-        var navBtn = document.querySelector('[data-page="' + page + '"]');
-        if (navBtn) {
-          // Temporarily make it clickable even if hidden
-          navBtn.dispatchEvent(new MouseEvent('click', {bubbles: true}));
-        }
-      }
-      // Sync tab bar
-      document.querySelectorAll('.mob-tab').forEach(function(t) {
-        t.classList.toggle('active', t.dataset.mobPage === page);
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-
-      // Wire main tab buttons
-      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          mobGoTo(btn.dataset.mobPage);
-        });
-      });
-
-      // More button (⋯)
-      var moreBtn = document.getElementById('mob-tab-more');
-      if (moreBtn) {
-        moreBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var sheet = document.getElementById('mob-more-sheet');
-          if (sheet) sheet.style.display = 'block';
-        });
-      }
-
-      // Close more sheet on backdrop click
-      var sheet = document.getElementById('mob-more-sheet');
-      if (sheet) {
-        sheet.addEventListener('click', function(e) {
-          if (e.target === this) closeMobMore();
-        });
-      }
-
-      // More sheet page buttons
-      document.querySelectorAll('.mob-more-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          mobGoTo(btn.dataset.mobPage);
-          closeMobMore();
-        });
-      });
-
-      // FAB (+) button → go to dépenses + focus amount
-      var fab = document.getElementById('mobile-fab');
-      if (fab) {
-        fab.addEventListener('click', function() {
-          mobGoTo('depenses');
-          setTimeout(function() {
-            var amtInput = document.getElementById('add-montant');
-            if (amtInput) {
-              amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              amtInput.focus();
-            }
-          }, 250);
-        });
-      }
-
-      // Sync tab bar when page changes via desktop nav
-      document.querySelectorAll('[data-page]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var page = btn.getAttribute('data-page');
-          document.querySelectorAll('.mob-tab').forEach(function(t) {
-            t.classList.toggle('active', t.dataset.mobPage === page);
-          });
-        });
-      });
-
-    });
-  </script>
-
 </body>
 
 </html>
+
+
+<!-- ═══ MODAL: Acheter un article wishlist ═══ -->
+<div id="modal-wl-achat" class="modal-backdrop hidden">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-header">
+      <h3>🛍️ Confirmer l'achat</h3>
+      <button class="modal-close" id="btn-wl-achat-cancel">×</button>
+    </div>
+
+    <!-- Article info -->
+    <div id="wl-achat-info" style="background:var(--s2);border-radius:var(--r2);padding:12px 14px;margin-bottom:16px;border-left:3px solid var(--accent)">
+      <div style="font-size:15px;font-weight:700;color:var(--text)" id="wl-achat-nom">—</div>
+      <div style="font-size:12px;color:var(--muted2);margin-top:3px" id="wl-achat-meta">—</div>
+    </div>
+
+    <!-- Toggle sync -->
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r2);border:1px solid var(--border);background:var(--s1);margin-bottom:14px;cursor:pointer" id="wl-achat-toggle-row">
+      <span style="font-size:20px">🔄</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Synchroniser avec les dépenses</div>
+        <div style="font-size:11.5px;color:var(--muted2)">Créer une dépense et débiter le compte automatiquement</div>
+      </div>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" id="wl-achat-sync" checked/>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Sync fields -->
+    <div id="wl-achat-fields">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr">
+        <div class="field">
+          <label>Montant réel payé (TND)</label>
+          <input type="number" id="wl-achat-montant" min="0" step="0.001" placeholder="0.000"/>
+        </div>
+        <div class="field">
+          <label>Date d'achat</label>
+          <input type="date" id="wl-achat-date"/>
+        </div>
+        <div class="field">
+          <label>Compte à débiter</label>
+          <select id="wl-achat-compte"></select>
+        </div>
+        <div class="field">
+          <label>Catégorie dépense</label>
+          <select id="wl-achat-categorie"></select>
+        </div>
+        <div class="field">
+          <label>Personne</label>
+          <select id="wl-achat-personne"></select>
+        </div>
+        <div class="field">
+          <label>Moyen de paiement</label>
+          <input type="text" id="wl-achat-moyen" placeholder="Carte, espèces…"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="margin-top:4px">
+      <button class="btn" id="btn-wl-achat-cancel2">Annuler</button>
+      <button class="btn btn-primary" id="btn-wl-achat-confirm" style="background:var(--green);border-color:var(--green)">
+        ✅ Confirmer l'achat
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ MODAL: Edit Dépense ═══ -->
 <div id="modal-edit-depense" class="modal-backdrop hidden">
@@ -2404,6 +2132,290 @@ input[type=file]{display:none}
 </div>
 
 <span id="save-hint" style="display:none"></span>
+<!-- ═══════════════════════════════════════════════════════════
+     FIREBASE — même config que index.html
+═══════════════════════════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider,
+           signInWithPopup, signInWithRedirect, getRedirectResult,
+           signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCrYOyadkNjuX3dSoX49ExSDzFuURd5NNM",
+    authDomain:        "fintrack-7965e.firebaseapp.com",
+    projectId:         "fintrack-7965e",
+    storageBucket:     "fintrack-7965e.firebasestorage.app",
+    messagingSenderId: "1024694573498",
+    appId:             "1:1024694573498:web:f4eb2fc4378669b6872583"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  let _currentUser = null;
+  let _saving      = false;
+  let _lastHash    = '';
+  let _saveTimer   = null;
+
+  const ui = id => document.getElementById(id);
+
+  function hashState() {
+    try {
+      const s = window.state;
+      if (!s) return '';
+      const dep    = s.depenses?.length || 0;
+      const cpt    = s.comptes?.length  || 0;
+      const cat    = s.categories?.length || 0;
+      const wl     = s.wishlist?.length || 0;
+      const fac    = s.factures?.length || 0;
+      const bud    = s.budgetMensuelGlobal || 0;
+      const ops    = s.operations?.length || 0;
+      const lastDep = s.depenses?.[s.depenses.length-1]?.id || '';
+      const lastFac = s.factures?.[s.factures.length-1]?.categorieId || '';
+      const lastCpt = s.comptes?.[s.comptes.length-1]?.soldeInitial || 0;
+      const budHash = Object.values(s.budgetsCategorie || {}).join(',');
+      return `${dep}-${cpt}-${cat}-${wl}-${fac}-${bud}-${ops}-${lastDep}-${lastFac}-${lastCpt}-${budHash}`;
+    } catch(e) { return Date.now().toString(); }
+  }
+
+  function setSyncStatus(msg, revertMs = 0) {
+    const el  = ui('fb-menu-sync');
+    const ind = ui('autosave-indicator');
+    const txt = ui('autosave-text');
+    const dot = ui('autosave-dot');
+    if (el) el.textContent = msg;
+    if (ind && _currentUser) {
+      if (msg.includes('⏳') || msg.includes('🔄')) {
+        ind.style.display = 'flex';
+        if (dot) dot.style.background = '#f6a623';
+        if (txt) txt.textContent = 'Sauvegarde...';
+      } else if (msg.includes('✅')) {
+        ind.style.display = 'flex';
+        if (dot) dot.style.background = 'var(--green,#1d9e75)';
+        if (txt) txt.textContent = 'Sauvegardé';
+        setTimeout(() => { if (ind) ind.style.display = 'none'; }, 2000);
+      } else {
+        if (ind) ind.style.display = 'none';
+      }
+    }
+    if (revertMs > 0) setTimeout(() => { if (el) el.textContent = '☁️ Connecté'; }, revertMs);
+  }
+
+  function hideLoginPage() {
+    document.body.classList.remove('app-hidden');
+    const el = document.getElementById('fb-login-page');
+    if (el) el.style.display = 'none';
+  }
+
+  function showLoginPage() {
+    document.body.classList.add('app-hidden');
+    const el = document.getElementById('fb-login-page');
+    if (el) el.style.display = 'flex';
+  }
+
+  function setLoggedIn(user) {
+    const block    = ui('fb-user-block');
+    const login    = ui('fb-login-btn');
+    const photo    = ui('fb-user-photo');
+    const initials = ui('fb-initials');
+    const name     = ui('fb-user-name');
+    const sync     = ui('fb-menu-sync');
+    const initial = (user.displayName || user.email || '?').charAt(0).toUpperCase();
+    if (photo) {
+      if (user.photoURL) { photo.src = user.photoURL; photo.style.display = 'block'; if (initials) initials.style.display = 'none'; }
+      else { photo.style.display = 'none'; if (initials) { initials.textContent = initial; initials.style.display = 'flex'; } }
+    }
+    if (name) name.textContent = user.displayName || user.email;
+    if (sync) sync.textContent = '☁️ Connecté';
+    if (login) login.style.display = 'none';
+    if (block) block.style.display = 'flex';
+  }
+
+  function setLoggedOut() {
+    const login = ui('fb-login-btn');
+    const block = ui('fb-user-block');
+    if (login) login.style.display = 'flex';
+    if (block) block.style.display = 'none';
+  }
+
+  async function loadData(user) {
+    setSyncStatus('⏳ Chargement...');
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) {
+        const data   = snap.data();
+        const remote = data.state;
+        if (remote && (remote.version === 2 || Array.isArray(remote.depenses))) {
+          remote.version = 2;
+          if (typeof window._applyState === 'function') {
+            window._applyState(remote);
+          }
+          _lastHash = hashState();
+          const count = remote.depenses?.length || 0;
+          setSyncStatus(count > 0 ? `☁️ ${count} dépenses` : '☁️ Connecté', 3000);
+        } else {
+          setSyncStatus('☁️ Connecté');
+        }
+      } else {
+        setSyncStatus('☁️ Connecté');
+      }
+    } catch(e) {
+      console.error('[Firebase] Load error:', e);
+      setSyncStatus('⚠️ Erreur chargement');
+    }
+  }
+
+  async function saveData(user) {
+    if (!user || _saving) return;
+    const currentHash = hashState();
+    const forceSave = window._allowEmptySave || (window._lastForceSave && Date.now() - window._lastForceSave < 5000);
+    if (currentHash === _lastHash && !forceSave) { setSyncStatus('☁️ Connecté'); return; }
+    window._lastForceSave = null;
+    const depCount = window.state?.depenses?.length || 0;
+    const cptCount = window.state?.comptes?.length  || 0;
+    if (depCount === 0 && cptCount === 0 && !window._allowEmptySave) { setSyncStatus('⚠️ State vide'); return; }
+    window._allowEmptySave = false;
+    _saving = true;
+    _lastHash = currentHash;
+    setSyncStatus('⏳ Sauvegarde...');
+    try {
+      await setDoc(doc(db, 'users', user.uid), { state: window.state, updatedAt: Date.now() });
+      setSyncStatus('✅ Sauvegardé', 2000);
+    } catch(e) {
+      console.error('[Firebase] Save error:', e);
+      setSyncStatus('⚠️ Erreur: ' + e.message);
+      _lastHash = '';
+    } finally {
+      _saving = false;
+    }
+  }
+
+  // Debounced save — appelé depuis saveState()
+  window._fbScheduleSave = function() {
+    if (!_currentUser) return;
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => saveData(_currentUser), 3000);
+  };
+
+  window._fbSaveData = async function() { if (_currentUser) await saveData(_currentUser); };
+  window._fbLoadData = async function() { if (_currentUser) await loadData(_currentUser); };
+  window._fbUser     = null;
+  window._allowEmptySave = false;
+
+  window._fbLogin = async function() {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try {
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      if (e.code === 'auth/popup-blocked') { await signInWithRedirect(auth, provider); }
+      else if (e.code !== 'auth/cancelled-popup-request' && e.code !== 'auth/popup-closed-by-user') {
+        const t = document.createElement('div');
+        t.style.cssText = `position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#e24b4a;color:white;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.4)`;
+        t.textContent = '❌ ' + (e.message || 'Erreur connexion');
+        document.body.appendChild(t); setTimeout(() => t.remove(), 4000);
+      }
+    }
+  };
+
+  window._fbLogout = async function() {
+    if (confirm('Se déconnecter de FinTrack ?')) { await signOut(auth); }
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      _currentUser = user;
+      window._fbUser = user;
+      setLoggedIn(user);
+      hideLoginPage();
+      await loadData(user);
+    } else {
+      _currentUser = null;
+      window._fbUser = null;
+      setLoggedOut();
+      if (typeof window._applyState === 'function') {
+        const empty = { version:2, depenses:[], comptes:[], categories:[], personnes:[], budgetMensuelGlobal:0, budgetsCategorie:{}, wishlist:[], operations:[], transfers:[], wishlistCategories:[], spMonthlyBudget:0, spLocks:{}, factures:[], factureCategories:[] };
+        window._applyState(empty);
+      }
+      showLoginPage();
+    }
+  });
+
+  getRedirectResult(auth).catch(() => {});
+</script>
+
+<!-- Page de login — affichée immédiatement avant que Firebase charge -->
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    document.body.classList.add("app-hidden");
+    var lp = document.createElement("div");
+    lp.id = "fb-login-page";
+    lp.style.cssText = "position:fixed;inset:0;z-index:9998;background:#0b0f1c;display:flex;align-items:center;justify-content:center;";
+    lp.innerHTML = '<div style="text-align:center;padding:40px 32px;background:#141926;border-radius:20px;border:1px solid #1e2640;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:340px;width:90%;">'
+      + '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1a3a8f,#3d72d8);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:white;letter-spacing:-1px">FT</div>'
+      + '<div style="font-size:22px;font-weight:800;color:#e4eaf6;margin-bottom:6px">FinTrack</div>'
+      + '<div style="font-size:13px;color:#7080a0;margin-bottom:28px;line-height:1.5">Connectez-vous pour accéder<br>à vos finances personnelles</div>'
+      + '<button id="fb-login-early-btn" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;background:white;color:#3c3c3c;border:1px solid #dadce0;border-radius:12px;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.15);">'
+      + '<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.84-1.6 2.4v2h2.6c1.52-1.4 2.4-3.47 2.4-5.92 0-.57-.05-1.12-.17-1.64z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2c-.71.48-1.63.76-2.7.76-2.07 0-3.83-1.4-4.46-3.27H1.86v2.07C3.18 15.06 5.89 17 8.98 17z"/><path fill="#FBBC05" d="M4.52 10.55c-.16-.48-.25-.99-.25-1.55s.09-1.07.25-1.55V5.38H1.86A8.01 8.01 0 0 0 1 9c0 1.29.31 2.51.86 3.62l2.66-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.22.4 3.04 1.2l2.27-2.27C12.95 1.89 11.14 1 8.98 1 5.89 1 3.18 2.94 1.86 5.38l2.66 2.07c.63-1.87 2.39-3.27 4.46-3.27z"/></svg>'
+      + 'Continuer avec Google</button>'
+      + '<div style="font-size:11px;color:#4f5f7a;margin-top:16px;line-height:1.5">Vos données sont privées et sécurisées.<br>Chaque utilisateur a son propre espace.</div>'
+      + '</div>';
+    document.body.appendChild(lp);
+    document.getElementById("fb-login-early-btn").addEventListener("click", function() {
+      if (typeof window._fbLogin === "function") window._fbLogin();
+      else setTimeout(function() { if (typeof window._fbLogin === "function") window._fbLogin(); }, 800);
+    });
+  });
+</script>
+
+<!-- CSS pour app-hidden + autosave indicator -->
+<style>
+body.app-hidden .main,
+body.app-hidden nav,
+body.app-hidden #sidebar { display: none !important; }
+#autosave-indicator {
+  display: none; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--muted2);
+}
+#autosave-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0;
+}
+/* Bouton utilisateur dans la nav */
+#fb-user-block {
+  display: none; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--r);
+  background: var(--s2); border: 1px solid var(--border2);
+  cursor: pointer; width: 100%; margin-bottom: 6px;
+}
+#fb-login-btn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 9px 12px; width: 100%;
+  background: var(--accent); border: none; border-radius: var(--r);
+  color: #fff; font-family: var(--font); font-size: 12.5px;
+  font-weight: 500; cursor: pointer; margin-bottom: 6px;
+}
+#fb-user-photo {
+  width: 26px; height: 26px; border-radius: 50%;
+  object-fit: cover; display: none;
+}
+#fb-initials {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(140deg,var(--accent),var(--purple));
+  color: #fff; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+#fb-user-name { font-size: 12px; color: var(--text); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#fb-menu-sync { font-size: 11px; color: var(--muted2); text-align: center; padding: 0 10px 6px; }
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 
@@ -2458,9 +2470,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
     btn.addEventListener("click", () => showPage(btn.getAttribute("data-page")));
   });
-
-  // Expose showPage globally for mobile nav
-  window.showPage = showPage;
 });
 
 
@@ -2485,87 +2494,97 @@ document.addEventListener("DOMContentLoaded", () => {
   function defaultState() {
     return {
       version: 2,
-      personnes:            [],
-      categories:           [],
-      comptes:              [],
-      budgetMensuelGlobal:  0,
-      budgetsCategorie:     {},
-      depenses:             [],
-      operations:           [],
-      recurringDue:         [],
-      wishlist:             [],
-      wishlistCategories:   [],
-      transfers:            [],
-      factures:             [],
+      personnes: [
+        { id: uid(), nom: "Moi" },
+        { id: uid(), nom: "Famille" },
+      ],
+      categories: [
+        { id: uid(), nom: "Alimentation" },
+        { id: uid(), nom: "Transport" },
+        { id: uid(), nom: "Logement" },
+        { id: uid(), nom: "Loisirs" },
+        { id: uid(), nom: "Autre" },
+      ],
+      comptes: [
+        { id: uid(), nom: "Compte courant", type: "courant", soldeInitial: 2500 },
+        { id: uid(), nom: "Épargne", type: "epargne", soldeInitial: 8000 },
+        { id: uid(), nom: "Espèces", type: "especes", soldeInitial: 200 },
+      ],
+      budgetMensuelGlobal: 0,
+      budgetsCategorie: {},
+      depenses: [],
+      operations: [],
+      recurringDue: [],
+      wishlist: [],
+      transfers: [],
+      spMonthlyBudget: 0,
+      spLocks: {},
+      factures: [],
+      factureCategories: [
+        { id: "fcat_elec",    nom: "Électricité",  icon: "⚡" },
+        { id: "fcat_eau",     nom: "Eau",           icon: "💧" },
+        { id: "fcat_net",     nom: "Internet",      icon: "🌐" },
+        { id: "fcat_loyer",   nom: "Loyer",         icon: "🏠" },
+        { id: "fcat_tel",     nom: "Téléphone",     icon: "📱" },
+        { id: "fcat_assur",   nom: "Assurance",     icon: "🛡️" },
+        { id: "fcat_autre",   nom: "Autre",         icon: "🧾" },
+      ],
+      wishlistCategories: [
+        { id: "wlcat_mode",    nom: "Mode & Vêtements",   icon: "👗", color: 0 },
+        { id: "wlcat_tech",    nom: "Tech & Électronique", icon: "💻", color: 1 },
+        { id: "wlcat_maison",  nom: "Maison & Déco",       icon: "🏠", color: 2 },
+        { id: "wlcat_sport",   nom: "Sport & Loisirs",     icon: "⚽", color: 3 },
+        { id: "wlcat_voyage",  nom: "Voyage",              icon: "✈️", color: 4 },
+        { id: "wlcat_livre",   nom: "Livres & Culture",    icon: "📚", color: 5 },
+        { id: "wlcat_autre",   nom: "Autre",               icon: "🛍️", color: 7 },
+      ],
     };
   }
 
   /** @type {ReturnType<typeof defaultState>} */
-  // Make state global so Firebase module can access it
-  window.state = defaultState();
-  // Use Proxy so 'state' ALWAYS reads from window.state
-  // This fixes the reference issue when Firebase updates window.state
-  // Simple direct reference - no Proxy needed
-  let state = window.state;
-
-  // ✅ THE KEY FIX: expose _applyState so Firebase module can
-  // directly update the LOCAL 'state' variable AND trigger render
-  window._applyState = function(remote) {
-    try {
-      // Copy ALL remote properties directly into local state
-      const keys = Object.keys(remote);
-
-      // First clear existing state (except non-data keys)
-      const skipKeys = ['_fbUser', '_applyState', '_renderAll'];
-      Object.keys(state).forEach(k => {
-        if (!skipKeys.includes(k)) delete state[k];
-      });
-
-      // Apply all remote data
-      keys.forEach(k => {
-        state[k]        = remote[k];
-        window.state[k] = remote[k];
-      });
-
-      // Ensure required fields exist
-      if (!state.depenses)   state.depenses   = [];
-      if (!state.comptes)    state.comptes    = [];
-      if (!state.categories) state.categories = [];
-      if (!state.personnes)  state.personnes  = [];
-      if (!state.wishlist)   state.wishlist   = [];
-      if (!state.factures)   state.factures   = [];
-      if (!state.operations) state.operations = [];
-      if (!state.budgetsCategorie) state.budgetsCategorie = {};
-
-      console.log('[_applyState] Applied:', state.depenses?.length,
-        'dépenses, categories:', state.categories?.length);
-
-      // Verify data was applied
-      const depCount  = state.depenses?.length || 0;
-      const cptCount  = state.comptes?.length || 0;
-      const catCount  = state.categories?.length || 0;
-      console.log(`[_applyState] State: ${depCount} dépenses, ${cptCount} comptes, ${catCount} catégories`);
-
-      // Render everything
-      try { refreshSelects(); } catch(e) { console.error('refreshSelects:', e); }
-      try { renderAll(); } catch(e) { console.error('renderAll:', e); }
-      try { renderDashboard(); } catch(e) { console.error('renderDashboard:', e); }
-      try { renderWishlist(); } catch(e) {}
-      try { renderFactures(); } catch(e) {}
-      try { renderAnalysesCharts(); } catch(e) {}
-
-      console.log('[_applyState] ✅ Complete');
-    } catch(e) {
-      console.error('[_applyState] CRITICAL Error:', e);
-    }
-  };
-
-  window._getState = function() { return state; };
+  let state = defaultState();
   const charts = {};
 
+  // ── FIREBASE INTEGRATION ──────────────────────────────────────
+  // Expose state globalement pour le module Firebase
+  window.state = state;
+
+  // _applyState : appelé par Firebase après chargement Firestore
+  window._applyState = function(remote) {
+    if (!remote || typeof remote !== 'object') return;
+    Object.keys(state).forEach(k => delete state[k]);
+    Object.assign(state, remote);
+    if (!Array.isArray(state.wishlist)) state.wishlist = [];
+    if (!Array.isArray(state.operations)) state.operations = [];
+    if (!Array.isArray(state.transfers)) state.transfers = [];
+    if (!Array.isArray(state.wishlistCategories) || state.wishlistCategories.length === 0)
+      state.wishlistCategories = defaultState().wishlistCategories;
+    if (typeof state.spMonthlyBudget !== 'number') state.spMonthlyBudget = 0;
+    if (!state.spLocks || typeof state.spLocks !== 'object') state.spLocks = {};
+    if (!Array.isArray(state.factures)) state.factures = [];
+    if (!Array.isArray(state.factureCategories) || state.factureCategories.length === 0)
+      state.factureCategories = defaultState().factureCategories;
+    window.state = state;
+    if (typeof renderAll === 'function') renderAll();
+  };
+
+  // Expose state helpers to inline sub-cat picker
+  window._state = () => state.categories || [];
+  window._fintrack_addSubcat = (parentId, nom) => {
+    if (!parentId || !nom) return;
+    if (state.categories.some(c => c.parentId === parentId && c.nom.toLowerCase() === nom.toLowerCase())) return;
+    state.categories.push({ id: uid(), nom, parentId });
+    saveState();
+    renderAll();
+    if (window.updateSubcatPicker) window.updateSubcatPicker();
+  };
+
   function loadState() {
-    // No localStorage — Firebase handles everything
+    // Firebase gère le chargement via _applyState.
+    // On ne charge pas localStorage ici pour éviter d'écraser les données Firebase.
+    // Etat initial vide — Firebase remplira via _applyState après login.
   }
+
   function buildDatabaseCsvText() {
     const lines = [];
     lines.push("##PERSONNES");
@@ -2574,7 +2593,7 @@ document.addEventListener("DOMContentLoaded", () => {
     lines.push("");
     lines.push("##CATEGORIES");
     lines.push("id,nom");
-    state.categories.forEach((c) => lines.push(`${c.id},${csvEsc(c.nom)}`));
+    state.categories.forEach((c) => lines.push(`${c.id},${csvEsc(c.nom)},${c.parentId||""}`) );
     lines.push("");
     lines.push("##COMPTES");
     lines.push("id,nom,type,solde_initial");
@@ -2655,76 +2674,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let saveHintTimer;
-  // ── AUTO-SAVE DEBOUNCE ───────────────────────────────────────────────────────
-  let _autoSaveTimer   = null;
-  window._clearAutoSave = () => { clearTimeout(_autoSaveTimer); _autoSaveTimer = null; };
-  let _autoSaveStatus  = null;
-
-  function _showSyncDot(msg) {
-    const el   = document.getElementById("save-status");
-    const ind  = document.getElementById("autosave-indicator");
-    const txt  = document.getElementById("autosave-text");
-    const dot  = document.getElementById("autosave-dot");
-    const sync = document.getElementById("fb-menu-sync");
-
-    if (el) el.textContent = msg;
-    if (sync && window._fbUser) sync.textContent = msg;
-
-    // Show/hide topbar indicator
-    if (ind && window._fbUser) {
-      if (msg.includes("Sync") || msg.includes("⏳")) {
-        ind.style.display = "flex";
-        if (dot) dot.style.background = "#f6a623"; // amber while saving
-        if (txt) txt.textContent = "Sauvegarde...";
-      } else if (msg.includes("✅") || msg.includes("Sauvegardé")) {
-        ind.style.display = "flex";
-        if (dot) dot.style.background = "var(--green,#1d9e75)"; // green when done
-        if (txt) txt.textContent = "Sauvegardé";
-        setTimeout(() => { if (ind) ind.style.display = "none"; }, 2000);
-      } else {
-        ind.style.display = "none";
-      }
-    }
-  }
-
   async function saveState() {
+    // Sync window.state avec l'objet local (même référence, mais sécurité)
+    window.state = state;
+
+    // Sauvegarde Firebase (debounced 3s)
+    if (typeof window._fbScheduleSave === 'function') {
+      window._fbScheduleSave();
+    }
+
+    // Feedback visuel
     const statusEl = document.getElementById("save-status");
     clearTimeout(saveHintTimer);
-    clearTimeout(_autoSaveTimer);
-
-    if (!window._fbUser) {
-      if (statusEl) statusEl.textContent = "⚠️ Connectez-vous";
-      saveHintTimer = setTimeout(() => {
-        if (statusEl) statusEl.textContent = "";
-      }, 2500);
-      playSaveBeep();
-      return;
-    }
-
-    _showSyncDot("🔄 ...");
-
-    // Debounce 3s — groups rapid changes into 1 Firebase write
-    _autoSaveTimer = setTimeout(async () => {
-      _showSyncDot("⏳ Sync...");
-      try {
-        await window._fbSaveData();
-        _showSyncDot("✅ Sauvegardé");
-        if (statusEl) statusEl.textContent = "✓ ☁️";
-        saveHintTimer = setTimeout(() => {
-          if (statusEl) statusEl.textContent = "";
-          const sync = document.getElementById("fb-menu-sync");
-          if (sync) sync.textContent = "☁️ Connecté";
-        }, 2000);
-      } catch(e) {
-        _showSyncDot("⚠️ Erreur sync");
-      }
-    }, 3000);
-
     if (csvFileHandle) {
-      try { await writeLinkedCsvFile(); } catch(e) { console.warn(e); }
+      try {
+        await writeLinkedCsvFile();
+        if (statusEl) statusEl.textContent = "✓ CSV + ☁️";
+      } catch (e) {
+        console.warn(e);
+        if (statusEl) statusEl.textContent = "✓ ☁️ (erreur CSV)";
+      }
+    } else {
+      if (statusEl) statusEl.textContent = window._fbUser ? "✓ ☁️ Sync..." : "✓ Enregistré";
     }
-
     playSaveBeep();
+    saveHintTimer = setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 2800);
   }
 
   async function chooseCsvFileForAutoSave() {
@@ -2803,8 +2777,26 @@ document.addEventListener("DOMContentLoaded", () => {
   function nomPersonne(id) {
     return state.personnes.find((p) => p.id === id)?.nom || "—";
   }
-  function nomCategorie(id) {
-    return state.categories.find((c) => c.id === id)?.nom || "—";
+  function nomCategorie(id, withParent) {
+    const cat = state.categories.find((c) => c.id === id);
+    if (!cat) return "—";
+    if (cat.parentId) {
+      const parent = state.categories.find((c) => c.id === cat.parentId);
+      if (parent && withParent !== false) return parent.nom + " › " + cat.nom;
+    }
+    return cat.nom;
+  }
+  function getCatParent(id) {
+    const cat = state.categories.find(c => c.id === id);
+    if (!cat) return null;
+    if (cat.parentId) return state.categories.find(c => c.id === cat.parentId) || null;
+    return null;
+  }
+  function getSubCats(parentId) {
+    return state.categories.filter(c => c.parentId === parentId);
+  }
+  function getRootCats() {
+    return state.categories.filter(c => !c.parentId);
   }
   function nomWlCategorie(id) {
     if (!id) return "";
@@ -2979,8 +2971,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function filteredDepensesListe() {
-    // Debug: log state on every filter call
-    if (window._debugFilter) console.log("[Filter] state.depenses:", state.depenses?.length, "window.state.depenses:", window.state?.depenses?.length);
     const q = byId("f-text").value.trim().toLowerCase();
     const cat = byId("f-cat").value;
     const pers = byId("f-pers").value;
@@ -2994,7 +2984,17 @@ document.addEventListener("DOMContentLoaded", () => {
     return state.depenses.filter((d) => {
       const dt = new Date(d.date);
       if (compte && d.compteId !== compte) return false;
-      if (cat && d.categorieId !== cat) return false;
+      if (cat) {
+        // Include sub-cats of the selected parent
+        const selectedCat = state.categories.find(c => c.id === cat);
+        const isParent = selectedCat && !selectedCat.parentId;
+        if (isParent) {
+          const subIds = state.categories.filter(c => c.parentId === cat).map(c => c.id);
+          if (d.categorieId !== cat && !subIds.includes(d.categorieId)) return false;
+        } else {
+          if (d.categorieId !== cat) return false;
+        }
+      }
       if (pers && d.personneId !== pers) return false;
       if (dFrom && dt < dFrom) return false;
       if (dTo && dt > dTo) return false;
@@ -3022,7 +3022,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function fillSelect(sel, items, labelKey, valueKey, emptyLabel) {
-    if (!sel) return; // Guard against null elements
     const cur = sel.value;
     sel.innerHTML = "";
     if (emptyLabel) {
@@ -3040,60 +3039,74 @@ document.addEventListener("DOMContentLoaded", () => {
     if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
   }
 
+  /** Fill a category select with grouped parent/sub structure */
+  function fillCatSelect(sel, emptyLabel, includeAll) {
+    const cur = sel.value;
+    sel.innerHTML = "";
+    if (emptyLabel) {
+      const o = document.createElement("option");
+      o.value = "";
+      o.textContent = emptyLabel;
+      sel.appendChild(o);
+    }
+    const roots = getRootCats();
+    roots.forEach(parent => {
+      const subs = getSubCats(parent.id);
+      if (subs.length === 0) {
+        // No sub-cats: simple option
+        const o = document.createElement("option");
+        o.value = parent.id;
+        o.textContent = parent.nom;
+        sel.appendChild(o);
+      } else {
+        // Optgroup for parent with sub-cats
+        const grp = document.createElement("optgroup");
+        grp.label = parent.nom;
+        if (includeAll) {
+          const oAll = document.createElement("option");
+          oAll.value = parent.id;
+          oAll.textContent = "— Toutes (" + parent.nom + ")";
+          grp.appendChild(oAll);
+        }
+        subs.forEach(sub => {
+          const o = document.createElement("option");
+          o.value = sub.id;
+          o.textContent = "  " + sub.nom;
+          o.className = "subcat-option";
+          grp.appendChild(o);
+        });
+        sel.appendChild(grp);
+      }
+    });
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  }
+
   function refreshSelects() {
-    fillSelect(byId("add-categorie"), state.categories, "nom", "id", false);
+    const catSel = byId("add-categorie");
+    if (catSel) fillCatSelect(catSel, false, false);
     fillSelect(byId("add-personne"), state.personnes, "nom", "id", false);
     fillSelect(byId("add-compte"), state.comptes, "nom", "id", false);
-    fillSelect(byId("f-cat"), state.categories, "nom", "id", "Toutes");
+    const fCat = byId("f-cat"); if (fCat) fillCatSelect(fCat, "Toutes", true);
     fillSelect(byId("f-pers"), state.personnes, "nom", "id", "Toutes");
     const fCompte = byId("f-compte"); if (fCompte) fillSelect(fCompte, state.comptes, "nom", "id", "Tous");
-    // Always populate wishlist category selects
+    // Also populate the parent-only select for adding sub-cats
+    const newSubParent = byId("new-subcat-parent");
+    if (newSubParent) fillSelect(newSubParent, getRootCats(), "nom", "id", "— Choisir une catégorie —");
+    // Wishlist selects
     const wlCats = state.wishlistCategories || defaultState().wishlistCategories;
     const wlCatSel = byId("wl-cat"); if (wlCatSel) fillSelect(wlCatSel, wlCats, "nom", "id", false);
     const wlFCat  = byId("wl-f-cat"); if (wlFCat)  fillSelect(wlFCat, wlCats, "nom", "id", "Toutes");
+    // Edit modals
+    const editCatSel = byId("edit-categorie"); if (editCatSel) fillCatSelect(editCatSel, false, false);
+    // Factures
+    const facCat = byId("fac-categorie"); if (facCat) fillCatSelect(facCat, "— Catégorie —", false);
   }
 
   function renderDashboard() {
     renderAlerts("alerts-dashboard");
-
-    // Show/hide onboarding
-    const onb = byId('onboarding-banner');
-    if (onb) {
-      const isEmpty = !state.comptes?.length || !state.depenses?.length;
-      onb.style.display = isEmpty ? 'block' : 'none';
-      // Update step completion
-      if (state.comptes?.length) {
-        const s1 = byId('onb-1');
-        if (s1) s1.classList.add('done');
-      }
-      if (state.categories?.length) {
-        const s2 = byId('onb-2');
-        if (s2) s2.classList.add('done');
-      }
-      if (state.depenses?.length) {
-        const s3 = byId('onb-3');
-        if (s3) s3.classList.add('done');
-        if (onb) onb.style.display = 'none'; // hide when all done
-      }
-    }
-
     const now = new Date();
-    // Use most recent month that has data (not necessarily current month)
-    let mk = currentMonthKey();
-    if (state.depenses && state.depenses.length > 0) {
-      const hasCurrentMonth = state.depenses.some(d => d.date && d.date.startsWith(mk));
-      if (!hasCurrentMonth) {
-        // Find the most recent month with data
-        const months = [...new Set(state.depenses.map(d => d.date ? d.date.slice(0,7) : ''))].filter(Boolean).sort();
-        if (months.length > 0) mk = months[months.length - 1];
-      }
-    }
-
-    const prevMk = (() => {
-      const [y, m] = mk.split('-').map(Number);
-      const d = new Date(y, m-2, 1);
-      return d.toISOString().slice(0,7);
-    })();
+    const mk = currentMonthKey();
+    const prevMk = (() => { const d = new Date(now.getFullYear(), now.getMonth()-1, 1); return d.toISOString().slice(0,7); })();
 
     const depMois = depensesDuMois(mk);
     const depPrevMois = depensesDuMois(prevMk);
@@ -3169,6 +3182,68 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>`;
     }).join("");
 
+    // ── New mobile hero dashboard ─────────────────────
+    const dhAmount = byId("dh-amount");
+    const dhSub    = byId("dh-sub");
+    const dhPills  = byId("dh-pills");
+    const dhStats  = byId("dash-stat-row");
+    const dhAccs   = byId("dash-accounts-scroll");
+
+    if (dhAmount) dhAmount.textContent = formatMoney(totalMois);
+    if (dhSub) {
+      const evo = evoPct !== null ? ` · ${evoPct > 0 ? "+" : ""}${evoPct}% vs mois préc.` : "";
+      dhSub.textContent = `${depMois.length} dépense(s) en ${mk}${evo}`;
+    }
+    if (dhPills) {
+      const pills = [];
+      pills.push(`<span class="dash-hero-pill"><span class="ph-icon">📅</span> Auj. ${formatMoney(totalAujourd)}</span>`);
+      pills.push(`<span class="dash-hero-pill"><span class="ph-icon">📆</span> Sem. ${formatMoney(totalSemaine)}</span>`);
+      if (bud) pills.push(`<span class="dash-hero-pill"><span class="ph-icon">🎯</span> Budget ${budPct}%</span>`);
+      dhPills.innerHTML = pills.join("");
+    }
+    if (dhStats) {
+      const budBar = bud ? `<div class="dash-stat-bar"><div class="dash-stat-bar-fill" style="width:${Math.min(100,budPct||0)}%"></div></div>` : "";
+      dhStats.innerHTML = `
+        <div class="dash-stat">
+          <span class="dash-stat-icon">📊</span>
+          <span class="dash-stat-label">Moy. par jour</span>
+          <span class="dash-stat-value">${formatMoney(avgParJour)}</span>
+          <span class="dash-stat-sub">Jour ${dayOfMonth}/${daysInMonth}</span>
+        </div>
+        <div class="dash-stat">
+          <span class="dash-stat-icon">🔮</span>
+          <span class="dash-stat-label">Prévision fin mois</span>
+          <span class="dash-stat-value" style="color:${bud && prevision>bud?'var(--red)':'var(--text)'}">${formatMoney(prevision)}</span>
+          ${bud ? `<span class="dash-stat-sub">Budget: ${formatMoney(bud)}</span>` : '<span class="dash-stat-sub">Pas de budget fixé</span>'}
+        </div>
+        <div class="dash-stat ${budCls}">
+          <span class="dash-stat-icon">🎯</span>
+          <span class="dash-stat-label">Budget global</span>
+          <span class="dash-stat-value">${budPct !== null ? budPct + "%" : "—"}</span>
+          <span class="dash-stat-sub">${bud ? formatMoney(totalMois) + " / " + formatMoney(bud) : "Non défini"}</span>
+          ${budBar}
+        </div>
+        <div class="dash-stat">
+          <span class="dash-stat-icon">🏆</span>
+          <span class="dash-stat-label">Top catégorie</span>
+          <span class="dash-stat-value" style="font-size:14px">${topCat ? escapeHtml(topCat[0]) : "—"}</span>
+          <span class="dash-stat-sub">${topCat ? formatMoney(topCat[1]) : ""}</span>
+        </div>
+      `;
+    }
+    if (dhAccs) {
+      dhAccs.innerHTML = state.comptes.length ? state.comptes.map(cc => {
+        const s = soldeCompte(cc);
+        const cls = s < 0 ? "danger" : (cc.soldeInitial > 0 && s < cc.soldeInitial * 0.1) ? "warn" : "";
+        return `<div class="dash-acc-card ${cls}">
+          <span class="dash-acc-name">💳 ${escapeHtml(cc.nom)}</span>
+          <span class="dash-acc-balance">${formatMoney(s)}</span>
+          <span class="dash-acc-spent">Dépensé: ${formatMoney(totalDepensesSurCompte(cc.id))}</span>
+        </div>`;
+      }).join("") : '<span style="color:var(--muted);font-size:13px;padding:8px">Aucun compte. Ajoutez-en un dans Comptes.</span>';
+    }
+
+    // ── Legacy kpi cards (hidden, kept for compat) ─────────
     const cards = byId("dash-cards");
     cards.innerHTML = `
       <div class="card">
@@ -3404,7 +3479,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const perPageEl = byId("dep-per-page");
     const perPage = perPageEl ? parseInt(perPageEl.value) || 50 : 50;
     const tb = byId("tbody-depenses");
-    const mobileCards = byId("dep-cards-mobile");
     const summary = byId("filter-summary");
     // Totals filtered by period (not all-time)
     const now = new Date();
@@ -3456,7 +3530,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const recBadge = d.recurrent ? `<span class="badge-rec">🔁</span>` : "";
       return `<tr>
         <td>${escapeHtml(new Date(d.date).toLocaleDateString("fr-FR"))}</td>
-        <td><span class="badge">${escapeHtml(nomCategorie(d.categorieId))}</span></td>
+        <td><span class="badge">${(() => {
+            const cat = state.categories.find(c => c.id === d.categorieId);
+            if (cat && cat.parentId) {
+              const par = state.categories.find(c => c.id === cat.parentId);
+              return par
+                ? `<span style="opacity:.65">${escapeHtml(par.nom)}</span> <span style="opacity:.5;font-size:9px">›</span> ${escapeHtml(cat.nom)}`
+                : escapeHtml(cat.nom);
+            }
+            return escapeHtml(nomCategorie(d.categorieId));
+          })()}</span></td>
         <td>${escapeHtml(nomPersonne(d.personneId))}</td>
         <td>${escapeHtml(nomCompte(d.compteId))}</td>
         <td>${escapeHtml(d.description || "—")}${recBadge}</td>
@@ -3468,51 +3551,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </td>
       </tr>`;
     }).join("");
-
-    // ── MOBILE CARDS (replaces table on phone) ──────────────────
-    if (mobileCards) {
-      const catMap = {};
-      state.categories.forEach(c => { catMap[c.id] = c.nom; });
-      const catEmojis = {
-        'alimentation':'🛒','transport':'🚗','logement':'🏠','loisir':'🎮',
-        'santé':'💊','vêtement':'👗','restaurant':'🍽️','café':'☕',
-        'essence':'⛽','famille':'👨‍👩‍👧','sport':'⚽','autre':'💰'
-      };
-      function getCatEmoji(nom) {
-        if (!nom) return '💰';
-        const n = nom.toLowerCase();
-        for (const [k,v] of Object.entries(catEmojis)) {
-          if (n.includes(k)) return v;
-        }
-        return '💰';
-      }
-      mobileCards.innerHTML = rows.map(d => {
-        const catNom = catMap[d.categorieId] || '—';
-        const emoji  = getCatEmoji(catNom);
-        const date   = new Date(d.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-        const desc   = d.description || catNom;
-        return `<div class="dep-card" data-card-id="${d.id}">
-          <div class="dep-card-icon">${emoji}</div>
-          <div class="dep-card-body">
-            <div class="dep-card-cat">${escapeHtml(desc)}</div>
-            <div class="dep-card-sub">${escapeHtml(catNom)}${d.recurrent ? ' · 🔁' : ''}</div>
-          </div>
-          <div>
-            <div class="dep-card-amount">−${d.montant.toFixed(3)}</div>
-            <div class="dep-card-date">${date}</div>
-          </div>
-        </div>`;
-      }).join('');
-
-      // Wire card taps → open edit modal
-      mobileCards.querySelectorAll('.dep-card').forEach(card => {
-        card.addEventListener('click', () => {
-          const id = card.dataset.cardId;
-          const editBtn = tb.querySelector(`[data-edit="${id}"]`);
-          if (editBtn) editBtn.click();
-        });
-      });
-    }
 
     tb.querySelectorAll("[data-del]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -3536,9 +3574,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderComptesTable() {
-    console.log("[renderComptesTable] comptes:", state.comptes?.length);
     const tb = byId("tbody-comptes");
-    if (!tb) { console.error("[renderComptesTable] tbody-comptes NOT FOUND"); return; }
     tb.innerHTML = state.comptes
       .map((c) => {
         const spent = totalDepensesSurCompte(c.id);
@@ -3670,11 +3706,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderReferentiels() {
-    console.log("[renderReferentiels] categories:", state.categories?.length, "personnes:", state.personnes?.length);
     const liStyle = `display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--surface2);gap:0.4rem`;
 
     const lp = byId("list-personnes");
-    if (!lp) { console.error("[renderReferentiels] list-personnes NOT FOUND"); return; }
     lp.innerHTML = state.personnes.map((p) =>
       `<li style="${liStyle}">
         <span>${escapeHtml(p.nom)}</span>
@@ -3712,19 +3746,49 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const lc = byId("list-categories");
-    lc.innerHTML = state.categories.map((cat) =>
-      `<li style="${liStyle}">
-        <span>${escapeHtml(cat.nom)}</span>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-sm btn-edit btn-edit-c" data-cid="${escapeHtml(cat.id)}" data-nom="${escapeHtml(cat.nom)}">✏️</button>
-          <button class="btn btn-sm btn-danger btn-del-c" data-cid="${escapeHtml(cat.id)}">🗑️</button>
-        </div>
-      </li>`).join("");
+    if (!lc) return;
+
+    // Build tree: roots with their sub-cats
+    const roots = getRootCats();
+    let html = "";
+    roots.forEach(parent => {
+      const subs = getSubCats(parent.id);
+      const subCount = subs.length;
+      html += `<div class="cat-tree-item">
+        <div class="cat-tree-parent">
+          <span class="cat-parent-name">
+            🏷️ ${escapeHtml(parent.nom)}
+            ${subCount ? `<span class="badge-subcat">${subCount} sous-cat.</span>` : ""}
+          </span>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-sm btn-edit btn-edit-c" data-cid="${escapeHtml(parent.id)}" data-nom="${escapeHtml(parent.nom)}">✏️</button>
+            <button class="btn btn-sm btn-danger btn-del-c" data-cid="${escapeHtml(parent.id)}">🗑️</button>
+          </div>
+        </div>`;
+      if (subs.length) {
+        html += `<div class="cat-subcats">`;
+        subs.forEach(sub => {
+          html += `<div class="cat-subcat-row">
+            <span class="cat-subcat-name">${escapeHtml(sub.nom)}</span>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm btn-edit btn-edit-c" data-cid="${escapeHtml(sub.id)}" data-nom="${escapeHtml(sub.nom)}">✏️</button>
+              <button class="btn btn-sm btn-danger btn-del-c" data-cid="${escapeHtml(sub.id)}">🗑️</button>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+    });
+    lc.innerHTML = html || '<p style="color:var(--muted);font-size:13px;padding:8px">Aucune catégorie. Ajoutez-en une ci-dessus.</p>';
 
     lc.querySelectorAll(".btn-del-c").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-cid");
+        const cat = state.categories.find(c => c.id === id);
+        const subs = getSubCats(id);
         if (state.depenses.some((d) => d.categorieId === id)) { alert("Impossible : des dépenses utilisent cette catégorie."); return; }
+        if (subs.length) { alert("Impossible : cette catégorie a des sous-catégories. Supprimez-les d'abord."); return; }
         confirmAction("Supprimer cette catégorie ?", () => {
           delete state.budgetsCategorie[id];
           state.categories = state.categories.filter((c) => c.id !== id);
@@ -3890,26 +3954,27 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderAll() {
-    window._renderAll = renderAll; // expose globally
+    // Expose globalement pour Firebase _applyState
+    window.renderAll = renderAll;
+    // Refresh sub-cat picker in form
+    setTimeout(() => { if (window.updateSubcatPicker) window.updateSubcatPicker(); }, 0);
     refreshSelects();
     const today = new Date().toISOString().slice(0, 10);
-    const addDateEl = byId("add-date");
-    if (addDateEl && !addDateEl.value) addDateEl.value = today;
+    if (!byId("add-date").value) byId("add-date").value = today;
 
     const activeId = document.querySelector(".page.active")?.id || "page-dashboard";
 
     // Always render these (they recalculate soldes from scratch)
-    // Each wrapped in try/catch so one error doesn't stop others
-    try { renderDepensesTable(); } catch(e) { console.error("renderDepensesTable:", e); }
-    try { renderComptesTable(); }  catch(e) { console.error("renderComptesTable:", e); }
-    try { renderBudgetsPage(); }   catch(e) { console.error("renderBudgetsPage:", e); }
-    try { renderReferentiels(); }  catch(e) { console.error("renderReferentiels:", e); }
-    try { renderWlCategories(); }  catch(e) { console.error("renderWlCategories:", e); }
-    try { renderWishlist(); }      catch(e) { console.error("renderWishlist:", e); }
+    renderDepensesTable();
+    renderComptesTable();  // recalculates all account balances
+    renderBudgetsPage();
+    renderReferentiels();
+    renderWlCategories();
+    renderWishlist();      // always render so cards are ready when page opens
 
     // Page-specific renders
-    if (activeId === "page-dashboard") { try { renderDashboard(); } catch(e) { console.error("renderDashboard:", e); } }
-    if (activeId === "page-analyses")  { try { renderAnalysesCharts(); } catch(e) { console.error("renderAnalyses:", e); } }
+    if (activeId === "page-dashboard") renderDashboard();
+    if (activeId === "page-analyses") renderAnalysesCharts();
 
     // Always update dashboard KPI cards even when on another page
     // so next time user goes to dashboard it's fresh
@@ -4148,8 +4213,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const [id, nom] = splitCsvLine(line);
         if (id && nom) personnes.push({ id, nom });
       } else if (mode === "CATEGORIES") {
-        const [id, nom] = splitCsvLine(line);
-        if (id && nom) categories.push({ id, nom });
+        const _cp = splitCsvLineFull ? splitCsvLineFull(line) : splitCsvLine(line);
+        const [_cid, _cnom, _cpid] = Array.isArray(_cp) ? _cp : [_cp[0], _cp[1]];
+        if (_cid && _cnom) categories.push({ id: _cid, nom: _cnom, parentId: _cpid || undefined });
       } else if (mode === "COMPTES") {
         const parts = splitCsvLineFull(line);
         if (parts.length >= 4) comptes.push({ id: parts[0], nom: parts[1], type: parts[2], soldeInitial: Number(parts[3]) || 0 });
@@ -4225,61 +4291,17 @@ document.addEventListener("DOMContentLoaded", () => {
     state.factures = factures.length ? factures : [];
     if (factureCats.length) state.factureCategories = factureCats;
     state.version = 2;
-
-    // Ensure window.state is synced (same reference check)
-    if (window.state !== state) {
-      console.warn("[Import] window.state !== state — syncing manually");
-      Object.keys(state).forEach(k => { window.state[k] = state[k]; });
-    }
-
-    console.log("[Import] Parsed:",
-      depenses.length, "dépenses,",
-      comptes.length, "comptes,",
-      categories.length, "catégories,",
-      "state.depenses.length =", window.state.depenses?.length
-    );
-
-    // ✅ IMPORT: save to Firebase IMMEDIATELY (bypass debounce)
+    saveState();
+    byId("global-error").textContent = "";
     const hint = byId("import-db-hint");
     if (hint) {
       hint.style.display = "inline";
-      hint.textContent = `⏳ Import en cours... envoi sur Firebase...`;
+      hint.textContent = `✅ Base importée ! ${depenses.length} dépenses, ${wishlist.length} articles wishlist, ${factures.length} factures.`;
+      setTimeout(()=>hint.style.display="none", 4000);
     }
-    byId("global-error").textContent = "";
-
-    // Force immediate Firebase save (no debounce)
-    if (window._fbUser && typeof window._fbSaveData === "function") {
-      if (typeof window._clearAutoSave === 'function') window._clearAutoSave();
-      // Log state before save
-      console.log("[Import] State before save:",
-        "depenses:", window.state.depenses?.length,
-        "comptes:", window.state.comptes?.length,
-        "categories:", window.state.categories?.length
-      );
-
-      window._fbSaveData().then(() => {
-        console.log("[Import] ✅ Firebase save complete!");
-        if (hint) {
-          hint.textContent = `✅ Importé ! ${depenses.length} dépenses, ${comptes.length} comptes.`;
-          setTimeout(() => hint.style.display = "none", 5000);
-        }
-        // Apply state directly without reload
-        if (typeof window._applyState === 'function') {
-          window._applyState(window.state);
-        }
-      }).catch(e => {
-        console.error("[Import] Firebase save error:", e);
-        if (hint) hint.textContent = "⚠️ Erreur: " + e.message;
-      });
-    } else {
-      if (hint) {
-        hint.textContent = `✅ Importé ! ${depenses.length} dépenses. ⚠️ Connectez-vous pour sauvegarder sur Firebase.`;
-        setTimeout(() => hint.style.display = "none", 5000);
-      }
-      renderAll();
-      renderWishlist();
-      try { renderFactures(); } catch(e) {}
-    }
+    renderAll();
+    renderWishlist();
+    try { renderFactures(); } catch(e) {}
   }
 
   function splitCsvLine(line) {
@@ -4315,136 +4337,10 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------- init ---------- */
   // nav buttons bound by wrapper above
 
-  // ── TOGGLE ADVANCED DEPENSE FIELDS ──────────────────────────────────────
-  window.toggleDepAdvanced = function() {
-    const fields = document.getElementById('dep-advanced-fields');
-    const icon   = document.getElementById('dep-advanced-icon');
-    const btn    = document.getElementById('btn-dep-advanced');
-    if (!fields) return;
-    const open = fields.style.display === 'none';
-    fields.style.display = open ? '' : 'none';
-    if (icon) icon.textContent = open ? '▼' : '▶';
-    if (btn)  btn.style.color  = open ? 'var(--accent)' : 'var(--muted2)';
-  };
-
-  // ── SMART FORM UX ─────────────────────────────────────────────────────────
-
-  // 1. Auto-set today's date on add-depense form
-  (function() {
-    const dateInput = byId("add-date");
-    if (dateInput && !dateInput.value) {
-      dateInput.value = new Date().toISOString().slice(0,10);
-    }
-  })();
-
-  // 2. Auto-focus montant when depenses page opens
-  document.querySelectorAll('[data-page]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.page === 'depenses') {
-        setTimeout(() => {
-          const m = byId('add-montant');
-          if (m) m.focus();
-        }, 150);
-      }
-    });
-  });
-
-  // 3. Quick amount chips (common amounts)
-  const addMontantInput = byId('add-montant');
-  if (addMontantInput) {
-    // Add quick chips after the amount field
-    const quickAmounts = [5, 10, 20, 50, 100];
-    const chipsHtml = `<div class="quick-chips" id="quick-amounts">
-      ${quickAmounts.map(a => `<button type="button" class="quick-chip" data-amount="${a}">${a} DT</button>`).join('')}
-    </div>`;
-    const amountField = addMontantInput.closest('.field');
-    if (amountField) {
-      amountField.insertAdjacentHTML('beforeend', chipsHtml);
-      amountField.querySelectorAll('.quick-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          addMontantInput.value = chip.dataset.amount;
-          // Visual feedback
-          amountField.querySelectorAll('.quick-chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          setTimeout(() => chip.classList.remove('active'), 600);
-        });
-      });
-    }
-  }
-
-  // 4. Field validation feedback
-  function validateField(input) {
-    const field = input.closest('.field');
-    if (!field) return;
-    if (input.required && !input.value) {
-      field.classList.add('error');
-      field.classList.remove('valid');
-    } else if (input.value) {
-      field.classList.remove('error');
-      field.classList.add('valid');
-    } else {
-      field.classList.remove('error','valid');
-    }
-  }
-
-  // Add validation on blur for required fields
-  document.querySelectorAll('.field.required input, .field.required select').forEach(inp => {
-    inp.addEventListener('blur', () => validateField(inp));
-    inp.addEventListener('input', () => {
-      if (inp.closest('.field')?.classList.contains('error')) {
-        validateField(inp);
-      }
-    });
-  });
-
-  // 5. Improve budget form with inline feedback
-  const budgetGlobalInput = byId('budget-global');
-  if (budgetGlobalInput) {
-    budgetGlobalInput.addEventListener('input', function() {
-      const val = parseFloat(this.value);
-      const totalMois = state.depenses
-        .filter(d => d.date && d.date.startsWith(currentMonthKey()))
-        .reduce((s,d) => s + d.montant, 0);
-      let hint = this.parentElement?.querySelector('.field-hint');
-      if (!hint) {
-        hint = document.createElement('div');
-        hint.className = 'field-hint';
-        this.parentElement?.appendChild(hint);
-      }
-      if (val > 0 && totalMois > 0) {
-        const pct = Math.round(totalMois / val * 100);
-        hint.innerHTML = `📊 Ce mois : <strong>${pct}%</strong> utilisé (${totalMois.toFixed(3)} / ${val} DT)`;
-        hint.style.color = pct > 100 ? 'var(--red)' : pct > 80 ? 'var(--amber)' : 'var(--green)';
-      } else {
-        hint.textContent = '';
-      }
-    });
-  }
-
-  byId("btn-save-local").addEventListener("click", async () => {
-    if (!window._fbUser) {
-      const btn   = byId("btn-save-local");
-      const label = btn.querySelector(".nav-label");
-      const orig  = label ? label.textContent : "Enregistrer";
-      if (label) label.textContent = "⚠️ Connexion requise";
-      btn.style.background = "var(--amber,#ba7517)";
-      setTimeout(() => {
-        if (label) label.textContent = orig;
-        btn.style.background = "";
-      }, 2500);
-      return;
-    }
-    // Force immediate save (skip debounce)
-    await window._fbSaveData();
-    const sync = document.getElementById("fb-menu-sync");
-    if (sync) {
-      sync.textContent = "✅ Sauvegardé";
-      setTimeout(() => { sync.textContent = "☁️ Connecté"; }, 2000);
-    }
-  });
+  byId("btn-save-local")?.addEventListener("click", () => saveState());
 
   // Reset filters
-  byId("btn-reset-filters").addEventListener("click", () => {
+  byId("btn-reset-filters")?.addEventListener("click", () => {
     ["f-text","f-cat","f-pers","f-compte","f-from","f-to","f-min","f-max"].forEach(id => {
       const el = byId(id);
       if (el) el.value = "";
@@ -4453,49 +4349,28 @@ document.addEventListener("DOMContentLoaded", () => {
     renderDepensesTable();
   });
 
-  byId("btn-add-depense").addEventListener("click", () => {
+  byId("btn-add-depense")?.addEventListener("click", () => {
     const montant = Number(byId("add-montant").value);
     if (!montant || montant <= 0) return;
+    const catId = window._getEffectiveCatId ? window._getEffectiveCatId() : byId("add-categorie").value;
     state.depenses.push({
       id: uid(),
       date: new Date(byId("add-date").value + "T12:00:00").toISOString(),
-      categorieId: byId("add-categorie").value,
+      categorieId: catId,
       personneId: byId("add-personne").value,
       compteId: byId("add-compte").value,
       description: byId("add-desc").value.trim(),
       montant,
       moyen: byId("add-moyen").value.trim(),
     });
-    saveState();
-    // Success feedback
-    const btn = byId("btn-add-depense");
-    const origText = btn.textContent;
-    btn.textContent = "✅ Ajouté !";
-    btn.style.background = "var(--green)";
-    btn.style.borderColor = "var(--green)";
-    setTimeout(() => {
-      btn.textContent = origText;
-      btn.style.background = "";
-      btn.style.borderColor = "";
-    }, 1500);
-
-    // Reset form
     byId("add-montant").value = "";
     byId("add-desc").value = "";
-    byId("add-moyen").value = "";
-    // Reset date to today
-    byId("add-date").value = new Date().toISOString().slice(0,10);
-    // Remove validation states
-    document.querySelectorAll('.field.valid,.field.error').forEach(f => {
-      f.classList.remove('valid','error');
-    });
-    // Refocus montant for quick re-entry
-    setTimeout(() => byId("add-montant").focus(), 100);
-
+    if (window._resetSubcatPicker) window._resetSubcatPicker();
+    saveState();
     renderAll();
   });
 
-  byId("btn-add-personne").addEventListener("click", () => {
+  byId("btn-add-personne")?.addEventListener("click", () => {
     const n = byId("new-personne-nom").value.trim();
     if (!n) return;
     if (state.personnes.some((p) => p.nom.toLowerCase() === n.toLowerCase())) return;
@@ -4505,17 +4380,32 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAll();
   });
 
-  byId("btn-add-categorie").addEventListener("click", () => {
+  byId("btn-add-categorie")?.addEventListener("click", () => {
     const n = byId("new-cat-nom").value.trim();
     if (!n) return;
-    if (state.categories.some((c) => c.nom.toLowerCase() === n.toLowerCase())) return;
+    if (state.categories.some((c) => !c.parentId && c.nom.toLowerCase() === n.toLowerCase())) return;
     state.categories.push({ id: uid(), nom: n });
     byId("new-cat-nom").value = "";
     saveState();
     renderAll();
   });
 
-  byId("btn-add-compte").addEventListener("click", () => {
+  byId("btn-add-subcat")?.addEventListener("click", () => {
+    const parentId = byId("new-subcat-parent")?.value;
+    const n = byId("new-subcat-nom")?.value.trim();
+    if (!parentId) { alert("Choisissez une catégorie parente."); return; }
+    if (!n) return;
+    // Check duplicate within same parent
+    if (state.categories.some(c => c.parentId === parentId && c.nom.toLowerCase() === n.toLowerCase())) return;
+    state.categories.push({ id: uid(), nom: n, parentId });
+    if (byId("new-subcat-nom")) byId("new-subcat-nom").value = "";
+    saveState();
+    renderAll();
+    // Re-open sub-cat picker in form if that parent is selected
+    updateSubcatPicker();
+  });
+
+  byId("btn-add-compte")?.addEventListener("click", () => {
     const nom = byId("new-compte-nom").value.trim();
     if (!nom) return;
     const type = byId("new-compte-type").value;
@@ -4526,23 +4416,75 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAll();
   });
 
-  byId("btn-save-budget-global").addEventListener("click", () => {
+  byId("btn-save-budget-global")?.addEventListener("click", () => {
     state.budgetMensuelGlobal = Number(byId("budget-global").value) || 0;
     saveState();
     renderAll();
   });
 
-  byId("btn-export-db").addEventListener("click", () => exportDatabaseCsv());
+  byId("btn-export-db")?.addEventListener("click", () => exportDatabaseCsv());
 
-  byId("file-db-import").addEventListener("change", async (e) => {
+  byId("file-db-import")?.addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     importDatabaseCsv(await f.text());
     e.target.value = "";
   });
 
+  // ── FIREBASE SYNC BUTTONS ─────────────────────────────────────────────────
+
+  byId("btn-fb-force-save")?.addEventListener("click", async () => {
+    const hint = byId("fb-sync-status");
+    if (!window._fbUser) { if (hint) hint.textContent = "⚠️ Non connecté — connectez-vous d'abord."; return; }
+    if (hint) hint.textContent = "⏳ Sauvegarde en cours...";
+    window._lastForceSave = Date.now();
+    try {
+      await window._fbSaveData();
+      if (hint) { hint.textContent = "✅ Sauvegardé sur Firebase !"; setTimeout(() => hint.textContent = "", 3000); }
+    } catch(e) {
+      if (hint) hint.textContent = "❌ Erreur : " + e.message;
+    }
+  });
+
+  byId("btn-fb-force-load")?.addEventListener("click", async () => {
+    const hint = byId("fb-sync-status");
+    if (!window._fbUser) { if (hint) hint.textContent = "⚠️ Non connecté — connectez-vous d'abord."; return; }
+    if (hint) hint.textContent = "⏳ Rechargement depuis Firebase...";
+    try {
+      await window._fbLoadData();
+      if (hint) { hint.textContent = "✅ Données rechargées depuis Firebase !"; setTimeout(() => hint.textContent = "", 3000); }
+    } catch(e) {
+      if (hint) hint.textContent = "❌ Erreur : " + e.message;
+    }
+  });
+
+  // Import CSV → Firebase immédiatement
+  byId("file-fb-import")?.addEventListener("change", async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const hint = byId("fb-import-hint");
+    if (hint) { hint.style.display = "inline"; hint.textContent = "⏳ Import en cours..."; }
+    try {
+      const text = await f.text();
+      importDatabaseCsv(text);
+      // Force immediate Firebase save (bypass hash check & empty guard)
+      window._allowEmptySave = true;
+      window._lastForceSave = Date.now();
+      if (window._fbUser) {
+        await window._fbSaveData();
+        if (hint) hint.textContent = "✅ CSV importé et sauvegardé sur Firebase !";
+      } else {
+        if (hint) hint.textContent = "✅ CSV importé (connectez-vous pour sauvegarder sur Firebase)";
+      }
+    } catch(err) {
+      if (hint) hint.textContent = "❌ Erreur import : " + err.message;
+    }
+    setTimeout(() => { if (hint) hint.style.display = "none"; }, 4000);
+    e.target.value = "";
+  });
+
   // Manual account operations
-  byId("btn-apply-operation").addEventListener("click", () => {
+  byId("btn-apply-operation")?.addEventListener("click", () => {
     const compteId = byId("op-compte").value;
     const type = byId("op-type").value;
     const montant = parseFloat(byId("op-montant").value);
@@ -4550,7 +4492,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!compteId || !montant || montant <= 0) return;
     if (!state.operations) state.operations = [];
     state.operations.push({ id: uid(), date: new Date().toISOString(), compteId, type, montant, motif });
-    saveState();
     byId("op-montant").value = "";
     byId("op-motif").value = "";
     const hint = byId("op-hint");
@@ -4607,9 +4548,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Expose renderAll globalement pour Firebase _applyState
+  window.renderAll = renderAll;
+
   try {
-    if (loaderStatus) loaderStatus.textContent = "Connexion en cours…";
-    // Start with empty state — Firebase will load real data
+    if (loaderStatus) loaderStatus.textContent = "Initialisation…";
+    loadState(); // No-op : Firebase charge via _applyState
+    if (loaderStatus) loaderStatus.textContent = "Rendu de l\'interface…";
     renderAll();
   } catch(e) {
     console.error("FinTrack init error:", e);
@@ -4631,11 +4576,11 @@ document.addEventListener("DOMContentLoaded", () => {
     byId("confirm-box").classList.remove("hidden");
     _confirmCb = cb;
   }
-  byId("btn-confirm-ok").addEventListener("click", () => {
+  byId("btn-confirm-ok")?.addEventListener("click", () => {
     byId("confirm-box").classList.add("hidden");
     if (_confirmCb) { _confirmCb(); _confirmCb = null; }
   });
-  byId("btn-confirm-cancel").addEventListener("click", () => {
+  byId("btn-confirm-cancel")?.addEventListener("click", () => {
     byId("confirm-box").classList.add("hidden");
     _confirmCb = null;
   });
@@ -4658,7 +4603,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let _addTags = [];
-  byId("add-tags-input").addEventListener("keydown", (e) => {
+  byId("add-tags-input")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       const val = e.target.value.trim().replace(/,/g,"");
@@ -4668,7 +4613,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   let _editTags = [];
-  byId("edit-tags-input").addEventListener("keydown", (e) => {
+  byId("edit-tags-input")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       const val = e.target.value.trim().replace(/,/g,"");
@@ -4699,7 +4644,7 @@ document.addEventListener("DOMContentLoaded", () => {
     byId("modal-edit-depense").classList.remove("hidden");
   }
 
-  byId("btn-edit-save").addEventListener("click", () => {
+  byId("btn-edit-save")?.addEventListener("click", () => {
     const d = state.depenses.find(x => x.id === _editDepId);
     if (!d) return;
     d.date = new Date(byId("edit-date").value + "T12:00:00").toISOString();
@@ -4711,17 +4656,38 @@ document.addEventListener("DOMContentLoaded", () => {
     d.moyen = byId("edit-moyen").value.trim();
     d.recurrent = byId("edit-recurrent").checked;
     d.tags = [..._editTags];
-    // Force save - editing existing item doesn't change count
-    window._lastForceSave = Date.now();
     saveState(); renderAll();
     byId("modal-edit-depense").classList.add("hidden");
   });
-  byId("btn-edit-cancel").addEventListener("click", () => byId("modal-edit-depense").classList.add("hidden"));
+  byId("btn-edit-cancel")?.addEventListener("click", () => byId("modal-edit-depense").classList.add("hidden"));
+  // ── Wishlist purchase modal wiring ──────────────────────────────────────────
+  byId("btn-wl-achat-cancel")?.addEventListener("click", closeWlAchatModal);
+  byId("btn-wl-achat-cancel2")?.addEventListener("click", closeWlAchatModal);
+  byId("btn-wl-achat-confirm")?.addEventListener("click", confirmWlAchat);
+
+  // Toggle row click
+  byId("wl-achat-toggle-row")?.addEventListener("click", () => {
+    const chk = byId("wl-achat-sync");
+    chk.checked = !chk.checked;
+    byId("wl-achat-fields").style.display = chk.checked ? "" : "none";
+    byId("wl-achat-toggle-row").style.borderColor = chk.checked ? "var(--accent)" : "var(--border)";
+    byId("wl-achat-toggle-row").style.background = chk.checked ? "var(--accent-d)" : "var(--s1)";
+  });
+  byId("wl-achat-sync")?.addEventListener("change", function() {
+    byId("wl-achat-fields").style.display = this.checked ? "" : "none";
+    byId("wl-achat-toggle-row").style.borderColor = this.checked ? "var(--accent)" : "var(--border)";
+    byId("wl-achat-toggle-row").style.background = this.checked ? "var(--accent-d)" : "var(--s1)";
+  });
+
+  // Close on backdrop click
+  byId("modal-wl-achat")?.addEventListener("click", function(e) {
+    if (e.target === this) closeWlAchatModal();
+  });
 
   // ── MODAL CANCEL BUTTONS ─────────────────────────────────────────────────
-  byId("btn-edit-personne-cancel").addEventListener("click", () => byId("modal-edit-personne").classList.add("hidden"));
-  byId("btn-edit-categorie-cancel").addEventListener("click", () => byId("modal-edit-categorie").classList.add("hidden"));
-  byId("btn-edit-compte-cancel").addEventListener("click", () => byId("modal-edit-compte").classList.add("hidden"));
+  byId("btn-edit-personne-cancel")?.addEventListener("click", () => byId("modal-edit-personne").classList.add("hidden"));
+  byId("btn-edit-categorie-cancel")?.addEventListener("click", () => byId("modal-edit-categorie").classList.add("hidden"));
+  byId("btn-edit-compte-cancel")?.addEventListener("click", () => byId("modal-edit-compte").classList.add("hidden"));
 
   // Close modals on backdrop click
   ["modal-edit-depense","modal-edit-personne","modal-edit-categorie","modal-edit-compte"].forEach(id => {
@@ -5171,7 +5137,129 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>`;
   }
 
-  function renderWishlist() {
+  // ── WISHLIST PURCHASE MODAL ─────────────────────────────────────────────────
+  let _wlAchatItem = null;
+
+  function openWlAchatModal(w) {
+    _wlAchatItem = w;
+    const cat = (state.wishlistCategories || []).find(c => c.id === w.categorieId);
+    const catLabel = cat ? `${cat.icon} ${cat.nom}` : '—';
+    const prix = w.prix ? `${w.prix.toFixed(3)} TND` : 'Prix non défini';
+
+    // Fill info
+    byId('wl-achat-nom').textContent = w.desc;
+    byId('wl-achat-meta').textContent = `${catLabel} • ${prix} • ${w.priority === 'haute' ? '🔴' : w.priority === 'basse' ? '🟢' : '🟡'} ${w.priority}`;
+
+    // Pre-fill amount
+    if (w.prix > 0) byId('wl-achat-montant').value = w.prix.toFixed(3);
+    else byId('wl-achat-montant').value = '';
+
+    // Pre-fill today's date
+    byId('wl-achat-date').value = new Date().toISOString().slice(0,10);
+
+    // Fill comptes dropdown
+    const selCompte = byId('wl-achat-compte');
+    selCompte.innerHTML = state.comptes.map(c =>
+      `<option value="${c.id}">${c.nom} (${c.type})</option>`
+    ).join('');
+
+    // Fill categories dropdown
+    const selCat = byId('wl-achat-categorie');
+    selCat.innerHTML = '<option value="">— Aucune —</option>' +
+      state.categories.map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+
+    // Try to auto-select "Loisirs" or "Autre"
+    const autocat = state.categories.find(c =>
+      c.nom.toLowerCase().includes('loisir') || c.nom.toLowerCase().includes('autre'));
+    if (autocat) selCat.value = autocat.id;
+
+    // Fill personnes dropdown
+    const selPers = byId('wl-achat-personne');
+    selPers.innerHTML = state.personnes.map(p =>
+      `<option value="${p.id}">${p.nom}</option>`
+    ).join('');
+
+    // Show modal
+    byId('modal-wl-achat').classList.remove('hidden');
+  }
+
+  function closeWlAchatModal() {
+    byId('modal-wl-achat').classList.add('hidden');
+    _wlAchatItem = null;
+  }
+
+  function confirmWlAchat() {
+    if (!_wlAchatItem) return;
+    const w = _wlAchatItem;
+    const sync = byId('wl-achat-sync').checked;
+
+    // Mark as done
+    w.done = true;
+
+    if (sync) {
+      const montant = Number(byId('wl-achat-montant').value);
+      if (!montant || montant <= 0) {
+        alert('Veuillez entrer un montant valide.');
+        return;
+      }
+      const dateVal = byId('wl-achat-date').value;
+      const compteId = byId('wl-achat-compte').value;
+      const categorieId = byId('wl-achat-categorie').value;
+      const personneId = byId('wl-achat-personne').value;
+      const moyen = byId('wl-achat-moyen').value.trim();
+
+      if (!compteId) { alert('Choisissez un compte.'); return; }
+
+      // Create depense
+      const dep = {
+        id: uid(),
+        date: new Date(dateVal + 'T12:00:00').toISOString(),
+        categorieId: categorieId || (state.categories[0]?.id || ''),
+        personneId:  personneId  || (state.personnes[0]?.id  || ''),
+        compteId:    compteId,
+        description: '🛍️ ' + w.desc,
+        montant:     montant,
+        moyen:       moyen,
+        tags:        ['wishlist'],
+        recurrent:   false,
+      };
+      state.depenses.push(dep);
+    }
+
+    saveState();
+    renderAll();
+    closeWlAchatModal();
+
+    // Toast feedback
+    showToast(sync
+      ? `✅ "${w.desc}" acheté · dépense créée !`
+      : `✅ "${w.desc}" marqué comme acheté`);
+  }
+
+  // Simple toast notification
+  function showToast(msg) {
+    let t = document.getElementById('ft-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'ft-toast';
+      t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);
+        background:var(--s2);color:var(--text);padding:12px 20px;border-radius:var(--r2);
+        border:1px solid var(--border2);font-size:13px;font-weight:500;z-index:9999;
+        box-shadow:0 4px 20px rgba(0,0,0,.4);transition:transform .3s,opacity .3s;opacity:0;
+        white-space:nowrap;max-width:90vw;text-align:center`;
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.transform = 'translateX(-50%) translateY(0)';
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => {
+      t.style.transform = 'translateX(-50%) translateY(60px)';
+      t.style.opacity = '0';
+    }, 3500);
+  }
+
+    function renderWishlist() {
     if (!byId("page-wishlist")) return;
 
     // Category selects already filled by refreshSelects() in renderAll()
@@ -5249,7 +5337,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ${w.notes ? `<div class="wl-notes">${escapeHtml(w.notes)}</div>` : ""}
         ${w.url ? `<a href="${escapeHtml(w.url)}" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--accent);text-overflow:ellipsis;overflow:hidden;white-space:nowrap;display:block">🔗 ${escapeHtml(w.url.replace(/^https?:\/\//, "").slice(0,50))}</a>` : ""}
         <div class="wl-card-actions">
-          <button class="btn btn-sm btn-wl-done ${w.done ? "is-done" : ""}" data-wl-done="${w.id}">${w.done ? "✅ Acheté" : "⬜ Marquer acheté"}</button>
+          <button class="btn btn-sm btn-wl-done ${w.done ? "is-done" : ""}" data-wl-done="${w.id}">${w.done ? "✅ Acheté" : "🛒 Acheter"}</button>
           <button class="btn btn-sm btn-edit" data-wl-edit="${w.id}">✏️</button>
           <button class="btn btn-sm btn-danger" data-wl-del="${w.id}">🗑️</button>
         </div>
@@ -5260,7 +5348,16 @@ document.addEventListener("DOMContentLoaded", () => {
     container.querySelectorAll("[data-wl-done]").forEach(btn => {
       btn.addEventListener("click", () => {
         const w = state.wishlist.find(x => x.id === btn.getAttribute("data-wl-done"));
-        if (w) { w.done = !w.done; saveState(); renderWishlist(); }
+        if (!w) return;
+        if (!w.done) {
+          // Not yet bought → open purchase dialog
+          openWlAchatModal(w);
+        } else {
+          // Already bought → just unmark (no depense deletion)
+          w.done = false;
+          saveState();
+          renderWishlist();
+        }
       });
     });
     container.querySelectorAll("[data-wl-del]").forEach(btn => {
@@ -5427,10 +5524,10 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>`;
       document.body.appendChild(modal);
-      byId("btn-close-wl-modal").addEventListener("click", () => modal.classList.add("hidden"));
-      byId("btn-ewl-cancel").addEventListener("click", () => modal.classList.add("hidden"));
+      byId("btn-close-wl-modal")?.addEventListener("click", () => modal.classList.add("hidden"));
+      byId("btn-ewl-cancel")?.addEventListener("click", () => modal.classList.add("hidden"));
       modal.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
-      byId("btn-ewl-save").addEventListener("click", () => {
+      byId("btn-ewl-save")?.addEventListener("click", () => {
         const w2 = (state.wishlist||[]).find(x => x.id === _editWlId);
         if (!w2) return;
         w2.desc = byId("ewl-desc").value.trim() || w2.desc;
@@ -5548,35 +5645,38 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnDeleteAll) {
     btnDeleteAll.addEventListener("click", () => {
       confirmAction("⚠️ Supprimer TOUTES les données (dépenses, comptes, wishlist…) ? Cette action est irréversible.", async () => {
-        // ✅ SUPPRESSION TOTALE — Clear ALL data + sync Firebase
-        const empty = defaultState();
-        Object.keys(empty).forEach(k => { state[k] = empty[k]; });
+        // Clear ALL data including wishlist
+        state.depenses       = [];
+        state.operations     = [];
+        state.wishlist             = [];
+        state.wishlistCategories   = defaultState().wishlistCategories;
+        state.budgetMensuelGlobal = 0;
+        state.budgetsCategorie    = {};
+        state.personnes = defaultState().personnes;
+        state.categories = defaultState().categories;
+        state.comptes    = defaultState().comptes;
 
-        // Immediate Firebase sync — allow empty state save
-        if (window._fbUser && typeof window._fbSaveData === 'function') {
-          try {
-            window._allowEmptySave = true; // Allow saving empty state
-            await window._fbSaveData();
-            console.log('[DeleteAll] ✅ Firebase cleared successfully');
-          } catch(e) {
-            console.error('[DeleteAll] Firebase error:', e);
-          }
-        }
+        // Force Firebase save (allowEmptySave bypasses the empty-state guard)
+        window._allowEmptySave = true;
+        window._lastForceSave = Date.now();
+        await saveState();
 
         // Re-render everything
-        if (typeof window._applyState === 'function') {
-          window._applyState(state);
-        } else {
-          renderAll();
-          renderWishlist();
-        }
+        renderAll();
+        renderWishlist();
+
+        // Clear wishlist UI directly as safety net
+        const wlCards = byId("wl-cards");
+        if (wlCards) wlCards.innerHTML = "";
+        const wlKpi = byId("wl-kpi");
+        if (wlKpi) wlKpi.innerHTML = "";
+        const wlEmpty = byId("wl-empty");
+        if (wlEmpty) wlEmpty.style.display = "block";
+        const wlRec = byId("wl-recommendations");
+        if (wlRec) wlRec.innerHTML = "";
 
         const hint = byId("delete-all-hint");
-        if (hint) {
-          hint.style.display = "inline";
-          hint.textContent = "✅ Toutes les données supprimées et synchronisées";
-          setTimeout(() => hint.style.display = "none", 3000);
-        }
+        if (hint) { hint.style.display = "inline"; setTimeout(() => hint.style.display = "none", 3000); }
       });
     });
   }
@@ -6385,7 +6485,6 @@ document.addEventListener("DOMContentLoaded", () => {
       recurrent: false,
       factureId: f.id,
     });
-    saveState();
 
     // 2. Opération débit — apparaît dans l'historique du compte
     if (!state.operations) state.operations = [];
@@ -6402,7 +6501,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Stocker les ids liés dans la facture pour suppression propre
     f.linkedDepenseId  = depId;
     f.linkedOperationId = opId;
-    saveState(); // Auto-save after facture payment
   }
 
   // ── Inline edit logic ────────────────────────────────────────
@@ -6460,9 +6558,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     _facEditId = null;
-    // Force Firebase save by clearing hash cache
-    if (typeof window._clearAutoSave === 'function') window._clearAutoSave();
-    window._lastForceSave = Date.now(); // signal to bypass hash check
     saveState();
     renderFactures();
     renderComptesTable();
@@ -6601,7 +6696,6 @@ document.addEventListener("DOMContentLoaded", () => {
           // Supprimer la dépense liée
           if (f.linkedDepenseId)
             state.depenses = state.depenses.filter(d => d.id !== f.linkedDepenseId);
-          saveState();
           // Supprimer l'opération liée
           if (f.linkedOperationId)
             state.operations = (state.operations || []).filter(o => o.id !== f.linkedOperationId);
@@ -6837,257 +6931,219 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </script>
 
-  
+<script>
+/* ── Mobile navigation ── */
+(function() {
+  const isMobile = () => window.innerWidth <= 720;
 
-
-
-  <style>
-    #fb-dropdown.show { display:block !important; }
-  </style>
-  <!-- ═══ SAFE GLOBAL WRAPPERS (accessible depuis onclick HTML) ═══ -->
-  <script>
-    // These wrappers delegate to Firebase functions once loaded
-    // They handle the case where Firebase module hasn't loaded yet
-    function fbLogin() {
-      if (typeof window._fbLogin === 'function') {
-        window._fbLogin();
-      } else {
-        console.warn('Firebase not loaded yet');
-        setTimeout(fbLogin, 500);
-      }
-    }
-
-    function fbLogout() {
-      if (typeof window._fbLogout === 'function') {
-        window._fbLogout();
-      } else {
-        console.warn('Firebase not loaded yet');
-      }
-    }
-
-    function fbToggleMenu() {
-      const menu = document.getElementById('fb-menu');
-      if (menu) menu.classList.toggle('open');
-    }
-  </script>
-
-  <!-- Debug helper -->
-  <script>
-    window.checkFirebase = function() {
-      console.log("=== FINTRACK DEBUG ===");
-      console.log("User:", window._fbUser?.email || "NOT CONNECTED");
-      console.log("State depenses:", window.state?.depenses?.length || 0);
-      console.log("State comptes:", window.state?.comptes?.length || 0);
-      console.log("State categories:", window.state?.categories?.length || 0);
-      console.log("State wishlist:", window.state?.wishlist?.length || 0);
-      console.log("window.state === state:", window.state === window.state);
-      console.log("===================");
-      alert(
-        "User: " + (window._fbUser?.email || "NON CONNECTÉ") + "\n" +
-        "Dépenses: " + (window.state?.depenses?.length || 0) + "\n" +
-        "Comptes: " + (window.state?.comptes?.length || 0) + "\n" +
-        "Catégories: " + (window.state?.categories?.length || 0)
-      );
-    };
-    window.forceSave = async function() {
-      if (window._fbSaveData) {
-        alert("Sauvegarde en cours...");
-        await window._fbSaveData();
-        alert("✅ Sauvegardé sur Firebase!");
-      } else {
-        alert("❌ Firebase non connecté");
-      }
-    };
-    window.forceLoad = async function() {
-      if (window._fbLoadData) {
-        await window._fbLoadData();
-        alert("✅ Données rechargées depuis Firebase!");
-      }
-    };
-    console.log("🔧 Debug tools: checkFirebase(), forceSave(), forceLoad()");
-  </script>
-
-  <!-- ═══ MOBILE BOTTOM TAB BAR ═══ -->
-  <div id="mobile-tab-bar">
-    <div class="tab-items">
-      <button class="mob-tab active" data-mob-page="dashboard">
-        <span class="tab-icon">🏠</span>
-        <span class="tab-label">Accueil</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" data-mob-page="depenses">
-        <span class="tab-icon">💸</span>
-        <span class="tab-label">Dépenses</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" data-mob-page="comptes">
-        <span class="tab-icon">💳</span>
-        <span class="tab-label">Comptes</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" data-mob-page="budgets">
-        <span class="tab-icon">🎯</span>
-        <span class="tab-label">Budgets</span>
-        <span class="tab-dot"></span>
-      </button>
-      <button class="mob-tab" id="mob-tab-more">
-        <span class="tab-icon">⋯</span>
-        <span class="tab-label">Plus</span>
-        <span class="tab-dot"></span>
-      </button>
-    </div>
-  </div>
-
-  <!-- FAB — Quick add expense -->
-  <button id="mobile-fab" aria-label="Ajouter une dépense">+</button>
-
-  <!-- MOBILE MORE SHEET -->
-  <div id="mob-more-sheet" style="
-    display:none; position:fixed; inset:0; z-index:300;
-    background:rgba(0,0,0,.6); backdrop-filter:blur(4px);
-  ">
-    <div style="
-      position:absolute; bottom:0; left:0; right:0;
-      background:var(--s1); border-radius:20px 20px 0 0;
-      padding:20px 16px calc(20px + env(safe-area-inset-bottom));
-      border-top:1px solid var(--border2);
-    ">
-      <div style="width:36px;height:4px;background:var(--border2);border-radius:99px;margin:0 auto 20px"></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-        <button class="mob-more-btn" data-mob-page="analyses">
-          <span style="font-size:24px">📊</span>
-          <span>Analyses</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="wishlist">
-          <span style="font-size:24px">🛍️</span>
-          <span>Wishlist</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="factures">
-          <span style="font-size:24px">📄</span>
-          <span>Factures</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="saving-planner">
-          <span style="font-size:24px">💰</span>
-          <span>Épargne</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="referentiels">
-          <span style="font-size:24px">👥</span>
-          <span>Référentiels</span>
-        </button>
-        <button class="mob-more-btn" data-mob-page="fichiers">
-          <span style="font-size:24px">📁</span>
-          <span>Fichiers</span>
-        </button>
-      </div>
-      <button onclick="closeMobMore()" style="
-        width:100%; margin-top:16px; padding:14px;
-        background:var(--s2); border:1px solid var(--border2);
-        border-radius:12px; color:var(--text);
-        font-size:14px; font-weight:600; cursor:pointer;
-      ">Fermer</button>
-    </div>
-  </div>
-
-  <style>
-    .mob-more-btn {
-      display:flex; flex-direction:column; align-items:center;
-      gap:6px; padding:14px 8px; border-radius:14px;
-      background:var(--s2); border:1px solid var(--border2);
-      cursor:pointer; font-size:12px; font-weight:600;
-      color:var(--text); transition:background .15s;
-      -webkit-tap-highlight-color:transparent;
-    }
-    .mob-more-btn:active { background:var(--s3); }
-  </style>
-
-  <script>
-    // ── MOBILE TAB BAR + FAB ───────────────────────────────────
-    
-    function closeMobMore() {
-      var sheet = document.getElementById('mob-more-sheet');
-      if (sheet) sheet.style.display = 'none';
-    }
-
-    function mobGoTo(page) {
-      // Use showPage directly if available, otherwise click nav btn
-      if (typeof showPage === 'function') {
-        showPage(page);
-      } else {
-        // Fallback: find and click any nav button for this page
-        var navBtn = document.querySelector('[data-page="' + page + '"]');
-        if (navBtn) {
-          // Temporarily make it clickable even if hidden
-          navBtn.dispatchEvent(new MouseEvent('click', {bubbles: true}));
-        }
-      }
-      // Sync tab bar
-      document.querySelectorAll('.mob-tab').forEach(function(t) {
-        t.classList.toggle('active', t.dataset.mobPage === page);
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-
-      // Wire main tab buttons
-      document.querySelectorAll('.mob-tab[data-mob-page]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          mobGoTo(btn.dataset.mobPage);
-        });
-      });
-
-      // More button (⋯)
-      var moreBtn = document.getElementById('mob-tab-more');
-      if (moreBtn) {
-        moreBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var sheet = document.getElementById('mob-more-sheet');
-          if (sheet) sheet.style.display = 'block';
-        });
-      }
-
-      // Close more sheet on backdrop click
-      var sheet = document.getElementById('mob-more-sheet');
-      if (sheet) {
-        sheet.addEventListener('click', function(e) {
-          if (e.target === this) closeMobMore();
-        });
-      }
-
-      // More sheet page buttons
-      document.querySelectorAll('.mob-more-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          mobGoTo(btn.dataset.mobPage);
-          closeMobMore();
-        });
-      });
-
-      // FAB (+) button → go to dépenses + focus amount
-      var fab = document.getElementById('mobile-fab');
-      if (fab) {
-        fab.addEventListener('click', function() {
-          mobGoTo('depenses');
-          setTimeout(function() {
-            var amtInput = document.getElementById('add-montant');
-            if (amtInput) {
-              amtInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              amtInput.focus();
-            }
-          }, 250);
-        });
-      }
-
-      // Sync tab bar when page changes via desktop nav
-      document.querySelectorAll('[data-page]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var page = btn.getAttribute('data-page');
-          document.querySelectorAll('.mob-tab').forEach(function(t) {
-            t.classList.toggle('active', t.dataset.mobPage === page);
-          });
-        });
-      });
-
+  /* Bottom nav tab switching */
+  const mobTabs = document.querySelectorAll('.mob-tab[data-page]');
+  mobTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const page = tab.getAttribute('data-page');
+      // Reuse existing nav-btn click logic: find the matching sidebar button
+      const sideBtn = document.querySelector('.nav-btn[data-page="' + page + '"]');
+      if (sideBtn) sideBtn.click();
+      // Update active state on bottom tabs
+      mobTabs.forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
     });
-  </script>
+  });
 
+  /* Sync bottom tabs when sidebar nav-btns are clicked */
+  document.querySelectorAll('.nav-btn[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = btn.getAttribute('data-page');
+      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
+      const matchTab = document.querySelector('.mob-tab[data-page="' + page + '"]');
+      if (matchTab) matchTab.classList.add('active');
+    });
+  });
+
+  /* More drawer */
+  const moreBackdrop = document.getElementById('mob-more-backdrop');
+  const moreSheet = document.getElementById('mob-more-sheet');
+  const moreTrigger = document.getElementById('mob-more-trigger');
+
+  function openMore() {
+    moreBackdrop.classList.add('show');
+    moreSheet.classList.add('show');
+  }
+  function closeMore() {
+    moreBackdrop.classList.remove('show');
+    moreSheet.classList.remove('show');
+  }
+
+  if (moreTrigger) moreTrigger.addEventListener('click', openMore);
+  if (moreBackdrop) moreBackdrop.addEventListener('click', closeMore);
+
+  document.querySelectorAll('.mob-more-btn[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = btn.getAttribute('data-page');
+      const sideBtn = document.querySelector('.nav-btn[data-page="' + page + '"]');
+      if (sideBtn) sideBtn.click();
+      // Update more sheet active state
+      document.querySelectorAll('.mob-more-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // Clear bottom tab active
+      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('mob-more-trigger')?.classList.add('active');
+      closeMore();
+    });
+  });
+
+  /* Save button in drawer */
+  const mobSaveBtn = document.getElementById('mob-save-btn');
+  if (mobSaveBtn) {
+    mobSaveBtn.addEventListener('click', () => {
+      closeMore();
+      const saveBtn = document.getElementById('btn-save-local');
+      if (saveBtn) saveBtn.click();
+    });
+  }
+
+  /* FAB: navigate to depenses page and scroll to form */
+  const fab = document.getElementById('btn-fab');
+  if (fab) {
+    fab.addEventListener('click', () => {
+      const sideBtn = document.querySelector('.nav-btn[data-page="depenses"]');
+      if (sideBtn) sideBtn.click();
+      // Sync bottom tab
+      document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
+      const depTab = document.querySelector('.mob-tab[data-page="depenses"]');
+      if (depTab) depTab.classList.add('active');
+      // Scroll to add form
+      setTimeout(() => {
+        const addSection = document.getElementById('page-depenses');
+        if (addSection) addSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const firstInput = document.getElementById('add-montant');
+        if (firstInput) firstInput.focus();
+      }, 120);
+    });
+  }
+
+  /* Hide FAB when keyboard is up (prevents overlap on iOS) */
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      if (!fab) return;
+      const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
+      fab.style.display = keyboardOpen ? 'none' : '';
+    });
+  }
+
+  /* Swipe-to-close the more sheet */
+  let touchStartY = 0;
+  if (moreSheet) {
+    moreSheet.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    moreSheet.addEventListener('touchend', e => {
+      if (e.changedTouches[0].clientY - touchStartY > 60) closeMore();
+    }, { passive: true });
+  }
+})();
+</script>
+
+<script>
+/* Topbar save button */
+(function(){
+  const saveTopBtn = document.getElementById('btn-save-local-top');
+  const mainSaveBtn = document.getElementById('btn-save-local');
+  if (saveTopBtn && mainSaveBtn) {
+    saveTopBtn.addEventListener('click', () => mainSaveBtn.click());
+  }
+})();
+</script>
+
+<script>
+/* ── Sub-category picker (depense form) ── */
+(function() {
+  // The "real" categorieId used when saving — could be the sub or the parent
+  let _selectedSubcatId = null;
+
+  function updateSubcatPicker() {
+    const parentId = document.getElementById("add-categorie")?.value;
+    const picker   = document.getElementById("add-subcat-picker");
+    const chips    = document.getElementById("add-subcat-chips");
+    if (!picker || !chips || !parentId) return;
+
+    // Get sub-cats of selected parent
+    const subs = (window._state ? window._state() : []).filter(c => c.parentId === parentId);
+    if (subs.length === 0) {
+      picker.classList.remove("show");
+      _selectedSubcatId = null;
+      return;
+    }
+
+    // Build chips
+    chips.innerHTML = subs.map(s =>
+      `<button type="button" class="subcat-chip${_selectedSubcatId===s.id ? " selected" : ""}" data-scid="${s.id}">`+
+      `<span>${s.nom}</span></button>`
+    ).join("");
+
+    // Chip click
+    chips.querySelectorAll(".subcat-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-scid");
+        if (_selectedSubcatId === id) {
+          // Deselect
+          _selectedSubcatId = null;
+          btn.classList.remove("selected");
+        } else {
+          _selectedSubcatId = id;
+          chips.querySelectorAll(".subcat-chip").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+        }
+      });
+    });
+
+    picker.classList.add("show");
+  }
+  window.updateSubcatPicker = updateSubcatPicker;
+
+  // Wire to category select change
+  document.addEventListener("DOMContentLoaded", () => {
+    const sel = document.getElementById("add-categorie");
+    if (sel) {
+      sel.addEventListener("change", () => {
+        _selectedSubcatId = null;
+        updateSubcatPicker();
+      });
+    }
+
+    // "Add sub-category" inline button in picker
+    const addBtn = document.getElementById("add-subcat-new-btn");
+    const addInp = document.getElementById("add-subcat-new-inp");
+    if (addBtn && addInp) {
+      const doAdd = () => {
+        const parentId = document.getElementById("add-categorie")?.value;
+        const nom = addInp.value.trim();
+        if (!parentId || !nom) return;
+        // Access state via the global helper exposed by the app
+        if (window._fintrack_addSubcat) {
+          window._fintrack_addSubcat(parentId, nom);
+          addInp.value = "";
+        }
+      };
+      addBtn.addEventListener("click", doAdd);
+      addInp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doAdd(); } });
+    }
+  });
+
+  // Expose getter so the app can read the final cat ID (sub if chosen, else parent)
+  window._getEffectiveCatId = function() {
+    const parentId = document.getElementById("add-categorie")?.value;
+    return _selectedSubcatId || parentId || "";
+  };
+
+  // Reset after save
+  window._resetSubcatPicker = function() {
+    _selectedSubcatId = null;
+    const picker = document.getElementById("add-subcat-picker");
+    if (picker) picker.classList.remove("show");
+    const chips = document.getElementById("add-subcat-chips");
+    if (chips) chips.innerHTML = "";
+  };
+})();
+</script>
 </body>
 </html>
