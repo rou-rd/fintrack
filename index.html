@@ -2298,8 +2298,17 @@ select option.subcat-option {
     _lastHash  = currentHash;
     setSyncStatus('⏳ Sauvegarde...');
 
-    // Snapshot de window.state au moment de la sauvegarde
-    const snapshot = window.state;
+    // Snapshot nettoyé : Firestore interdit les valeurs `undefined`
+    // JSON.parse(JSON.stringify(...)) les supprime proprement
+    let snapshot;
+    try {
+      snapshot = JSON.parse(JSON.stringify(window.state));
+    } catch(e) {
+      console.error('[Firebase] Sérialisation échouée:', e);
+      setSyncStatus('⚠️ Erreur sérialisation');
+      _saving = false;
+      return;
+    }
     console.log('[Firebase] Save:', depCount, 'dépenses,', cptCount, 'comptes');
 
     try {
