@@ -2273,24 +2273,43 @@ select option.subcat-option {
 
   async function saveData(user) {
     if (!user || _saving) return;
-    const currentHash = hashState();
+
     const forceSave = window._allowEmptySave || (window._lastForceSave && Date.now() - window._lastForceSave < 5000);
+    const currentHash = hashState();
+
+    // Si pas de changement ET pas de force → skip
     if (currentHash === _lastHash && !forceSave) { setSyncStatus('☁️ Connecté'); return; }
-    window._lastForceSave = null;
+
+    // Réinitialiser les flags de force
+    window._lastForceSave  = null;
+    const wasEmptySave = window._allowEmptySave;
+    window._allowEmptySave = false;
+
+    // Vérification état vide (sauf si force explicite)
     const depCount = window.state?.depenses?.length || 0;
     const cptCount = window.state?.comptes?.length  || 0;
-    if (depCount === 0 && cptCount === 0 && !window._allowEmptySave) { setSyncStatus('⚠️ State vide'); return; }
-    window._allowEmptySave = false;
-    _saving = true;
-    _lastHash = currentHash;
+    if (depCount === 0 && cptCount === 0 && !wasEmptySave) {
+      console.warn('[Firebase] State vide — save annulé');
+      setSyncStatus('⚠️ Rien à sauvegarder');
+      return;
+    }
+
+    _saving    = true;
+    _lastHash  = currentHash;
     setSyncStatus('⏳ Sauvegarde...');
+
+    // Snapshot de window.state au moment de la sauvegarde
+    const snapshot = window.state;
+    console.log('[Firebase] Save:', depCount, 'dépenses,', cptCount, 'comptes');
+
     try {
-      await setDoc(doc(db, 'users', user.uid), { state: window.state, updatedAt: Date.now() });
+      await setDoc(doc(db, 'users', user.uid), { state: snapshot, updatedAt: Date.now() });
       setSyncStatus('✅ Sauvegardé', 2000);
+      console.log('[Firebase] ✅ Sauvegardé');
     } catch(e) {
       console.error('[Firebase] Save error:', e);
       setSyncStatus('⚠️ Erreur: ' + e.message);
-      _lastHash = '';
+      _lastHash = ''; // reset pour réessayer
     } finally {
       _saving = false;
     }
@@ -2550,22 +2569,25 @@ document.addEventListener("DOMContentLoaded", () => {
   window.state = state;
 
   // _applyState : appelé par Firebase après chargement Firestore
+  // Mute state EN PLACE pour garder la même référence partout
   window._applyState = function(remote) {
     if (!remote || typeof remote !== 'object') return;
     Object.keys(state).forEach(k => delete state[k]);
     Object.assign(state, remote);
-    if (!Array.isArray(state.wishlist)) state.wishlist = [];
-    if (!Array.isArray(state.operations)) state.operations = [];
-    if (!Array.isArray(state.transfers)) state.transfers = [];
+    if (!Array.isArray(state.wishlist))            state.wishlist = [];
+    if (!Array.isArray(state.operations))          state.operations = [];
+    if (!Array.isArray(state.transfers))           state.transfers = [];
     if (!Array.isArray(state.wishlistCategories) || state.wishlistCategories.length === 0)
       state.wishlistCategories = defaultState().wishlistCategories;
     if (typeof state.spMonthlyBudget !== 'number') state.spMonthlyBudget = 0;
     if (!state.spLocks || typeof state.spLocks !== 'object') state.spLocks = {};
-    if (!Array.isArray(state.factures)) state.factures = [];
+    if (!Array.isArray(state.factures))            state.factures = [];
     if (!Array.isArray(state.factureCategories) || state.factureCategories.length === 0)
       state.factureCategories = defaultState().factureCategories;
     window.state = state;
+    // renderAll peut être défini plus tard (chargement async) — on retente
     if (typeof renderAll === 'function') renderAll();
+    else if (typeof window.renderAll === 'function') window.renderAll();
   };
 
   // Expose state helpers to inline sub-cat picker
@@ -2675,7 +2697,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let saveHintTimer;
   async function saveState() {
-    // Sync window.state avec l'objet local (même référence, mais sécurité)
+    // CRITIQUE : toujours synchroniser window.state avant toute sauvegarde Firebase
+    // state et window.state doivent pointer vers le même objet
     window.state = state;
 
     // Sauvegarde Firebase (debounced 3s)
@@ -4291,17 +4314,46 @@ document.addEventListener("DOMContentLoaded", () => {
     state.factures = factures.length ? factures : [];
     if (factureCats.length) state.factureCategories = factureCats;
     state.version = 2;
-    saveState();
+
+    // ── CRITIQUE : synchroniser window.state avec l'objet local ──
+    // Firebase lit window.state — sans ça, les données importées ne sont pas sauvegardées
+    window.state = state;
+
+    // Afficher immédiatement (avant la sauvegarde Firebase)
+    renderAll();
+    renderWishlist();
+    try { renderFactures(); } catch(e) {}
+
     byId("global-error").textContent = "";
     const hint = byId("import-db-hint");
     if (hint) {
       hint.style.display = "inline";
-      hint.textContent = `✅ Base importée ! ${depenses.length} dépenses, ${wishlist.length} articles wishlist, ${factures.length} factures.`;
-      setTimeout(()=>hint.style.display="none", 4000);
+      hint.textContent = `⏳ Import OK (${depenses.length} dépenses) — sauvegarde Firebase...`;
     }
-    renderAll();
-    renderWishlist();
-    try { renderFactures(); } catch(e) {}
+
+    // Force Firebase save immédiat (bypass hash + empty guard)
+    window._allowEmptySave = true;
+    window._lastForceSave  = Date.now();
+
+    if (typeof window._fbSaveData === 'function' && window._fbUser) {
+      window._fbSaveData().then(() => {
+        if (hint) {
+          hint.textContent = `✅ ${depenses.length} dépenses, ${wishlist.length} wishlist, ${factures.length} factures — sauvegardés sur Firebase !`;
+          setTimeout(() => hint.style.display = "none", 4000);
+        }
+      }).catch(err => {
+        if (hint) {
+          hint.textContent = `✅ Import OK — ⚠️ Firebase : ${err.message}`;
+          setTimeout(() => hint.style.display = "none", 5000);
+        }
+      });
+    } else {
+      // Pas connecté : sauvegarde locale seulement
+      if (hint) {
+        hint.textContent = `✅ ${depenses.length} dépenses importées. Connectez-vous pour sauvegarder sur Firebase.`;
+        setTimeout(() => hint.style.display = "none", 4000);
+      }
+    }
   }
 
   function splitCsvLine(line) {
@@ -4458,28 +4510,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Import CSV → Firebase immédiatement
+  // Import CSV → Firebase : importDatabaseCsv gère maintenant tout (sync + save Firebase)
   byId("file-fb-import")?.addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const hint = byId("fb-import-hint");
-    if (hint) { hint.style.display = "inline"; hint.textContent = "⏳ Import en cours..."; }
     try {
-      const text = await f.text();
-      importDatabaseCsv(text);
-      // Force immediate Firebase save (bypass hash check & empty guard)
-      window._allowEmptySave = true;
-      window._lastForceSave = Date.now();
-      if (window._fbUser) {
-        await window._fbSaveData();
-        if (hint) hint.textContent = "✅ CSV importé et sauvegardé sur Firebase !";
-      } else {
-        if (hint) hint.textContent = "✅ CSV importé (connectez-vous pour sauvegarder sur Firebase)";
-      }
+      importDatabaseCsv(await f.text());
     } catch(err) {
-      if (hint) hint.textContent = "❌ Erreur import : " + err.message;
+      const hint = byId("fb-import-hint");
+      if (hint) { hint.style.display = "inline"; hint.textContent = "❌ Erreur : " + err.message; }
     }
-    setTimeout(() => { if (hint) hint.style.display = "none"; }, 4000);
     e.target.value = "";
   });
 
