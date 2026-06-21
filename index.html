@@ -3084,31 +3084,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const roots = getRootCats();
     roots.forEach(parent => {
       const subs = getSubCats(parent.id);
-      if (subs.length === 0) {
-        // No sub-cats: simple option
+      // Parent is ALWAYS selectable (you can assign an expense to the parent itself)
+      const po = document.createElement("option");
+      po.value = parent.id;
+      po.textContent = (subs.length && includeAll) ? `${parent.nom} (toutes)` : parent.nom;
+      sel.appendChild(po);
+      // Sub-categories: selectable too, shown indented under their parent
+      subs.forEach(sub => {
         const o = document.createElement("option");
-        o.value = parent.id;
-        o.textContent = parent.nom;
+        o.value = sub.id;
+        o.textContent = "\u2003\u21B3 " + sub.nom; // em-space + ↳
+        o.className = "subcat-option";
         sel.appendChild(o);
-      } else {
-        // Optgroup for parent with sub-cats
-        const grp = document.createElement("optgroup");
-        grp.label = parent.nom;
-        if (includeAll) {
-          const oAll = document.createElement("option");
-          oAll.value = parent.id;
-          oAll.textContent = "— Toutes (" + parent.nom + ")";
-          grp.appendChild(oAll);
-        }
-        subs.forEach(sub => {
-          const o = document.createElement("option");
-          o.value = sub.id;
-          o.textContent = "  " + sub.nom;
-          o.className = "subcat-option";
-          grp.appendChild(o);
-        });
-        sel.appendChild(grp);
-      }
+      });
     });
     if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
   }
@@ -4044,13 +4032,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const COL = {
-    date: ["date", "jour"],
-    categorie: ["categorie", "category", "type_depense", "type"],
-    description: ["description", "libelle", "detail", "notes"],
-    montant: ["montant", "amount", "cout", "valeur"],
-    personne: ["personne", "auteur", "qui", "user"],
-    compte: ["compte", "compte_debite", "account"],
-    moyen: ["moyen_paiement", "moyen", "paiement", "mode"],
+    date: ["date", "jour", "date_operation", "date_transaction", "date_achat"],
+    categorie: ["categorie", "category", "type_depense", "type", "rubrique"],
+    description: ["description", "libelle", "detail", "notes", "intitule", "memo", "objet"],
+    montant: ["montant", "amount", "cout", "valeur", "debit", "prix", "somme", "total"],
+    personne: ["personne", "auteur", "qui", "user", "membre"],
+    compte: ["compte", "compte_debite", "account", "carte"],
+    moyen: ["moyen_paiement", "moyen", "paiement", "mode", "mode_paiement"],
   };
 
   function mapHeaders(headers) {
@@ -4069,7 +4057,25 @@ document.addEventListener("DOMContentLoaded", () => {
     return idx;
   }
 
-  function parseCSV(text) {
+  // Guess the field separator from the first few lines (comma / semicolon / tab).
+  function sniffDelimiter(text) {
+    const sample = String(text).split(/\r?\n/).slice(0, 5).join("\n");
+    const candidates = [",", ";", "\t"];
+    let best = ",", bestCount = -1;
+    for (const d of candidates) {
+      let count = 0, inQ = false;
+      for (let i = 0; i < sample.length; i++) {
+        const c = sample[i];
+        if (c === '"') inQ = !inQ;
+        else if (c === d && !inQ) count++;
+      }
+      if (count > bestCount) { bestCount = count; best = d; }
+    }
+    return best;
+  }
+
+  function parseCSV(text, delim) {
+    const D = delim || ",";
     const rows = [];
     let i = 0;
     let field = "";
@@ -4097,7 +4103,7 @@ document.addEventListener("DOMContentLoaded", () => {
         i++;
         continue;
       }
-      if (c === ",") {
+      if (c === D) {
         row.push(field);
         field = "";
         i++;
@@ -4127,8 +4133,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function parseMontant(s) {
     if (s == null) return NaN;
-    let t = String(s).trim().replace(/\s/g, "").replace(",", ".");
-    t = t.replace(/[^\d.-]/g, "");
+    let t = String(s).trim().replace(/\s/g, "").replace(/\u00a0/g, "");
+    if (t === "") return NaN;
+    // EU "1.234,56" vs US "1,234.56" — decide by the decimal separator at the end
+    if (/,\d{1,2}$/.test(t)) {
+      t = t.replace(/\./g, "").replace(",", "."); // EU: dot = thousands, comma = decimal
+    } else {
+      t = t.replace(/,/g, "");                    // US: comma = thousands
+    }
+    t = t.replace(/[^\d.\-]/g, "");
     return parseFloat(t);
   }
 
@@ -4148,40 +4161,59 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function importDepensesCsv(text) {
-    const matrix = parseCSV(text);
-    if (!matrix.length) return;
+    const matrix = parseCSV(text, sniffDelimiter(text));
+    const report = { mode: "flat", rowsRead: Math.max(0, matrix.length - 1), expenses: 0, income: 0, skipped: 0, reasons: {}, created: { categories: 0, personnes: 0, comptes: 0 } };
+    if (!matrix.length) { report.error = "Fichier vide."; _finishImport(report); return; }
     const idx = mapHeaders(matrix[0]);
     if (idx.montant === undefined) {
-      byId("global-error").textContent = "CSV dépenses : colonne montant introuvable.";
+      report.error = "Colonne « montant » introuvable. En-têtes acceptés : montant, amount, prix, somme, total…";
+      _finishImport(report);
       return;
     }
     byId("global-error").textContent = "";
+    const before = { c: state.categories.length, p: state.personnes.length, a: state.comptes.length };
     const defPers = state.personnes[0]?.id;
     const defCompte = state.comptes.find((c) => c.type === "courant")?.id || state.comptes[0]?.id;
+    const bump = (k) => { report.reasons[k] = (report.reasons[k] || 0) + 1; report.skipped++; };
+
     for (let r = 1; r < matrix.length; r++) {
       const line = matrix[r];
-      if (!line?.length) continue;
+      if (!line?.length || line.every((c) => String(c).trim() === "")) { continue; }
       const m = parseMontant(line[idx.montant]);
-      if (Number.isNaN(m) || m < 0) continue;
+      if (Number.isNaN(m)) { bump("montant illisible"); continue; }
+      if (m === 0) { bump("montant nul"); continue; }
+
       const dateIso = idx.date !== undefined ? parseDateCell(line[idx.date]) : new Date().toISOString();
       const catNom = idx.categorie !== undefined ? line[idx.categorie] : "Autre";
       const persNom = idx.personne !== undefined ? line[idx.personne] : "";
       const compteNom = idx.compte !== undefined ? line[idx.compte] : "";
       const desc = idx.description !== undefined ? String(line[idx.description] || "") : "";
       const moy = idx.moyen !== undefined ? String(line[idx.moyen] || "") : "";
-      state.depenses.push({
-        id: uid(),
-        date: dateIso,
-        categorieId: findOrCreateCategorie(catNom),
-        personneId: persNom ? findOrCreatePersonne(persNom) : defPers,
-        compteId: compteNom ? findOrCreateCompte(compteNom) : defCompte,
-        description: desc,
-        montant: m,
-        moyen: moy,
-      });
+      const compteId = compteNom ? findOrCreateCompte(compteNom) : defCompte;
+
+      if (m < 0) {
+        // Negative = money IN (refund / income). Don't drop it — record as a credit operation.
+        if (!state.operations) state.operations = [];
+        state.operations.push({ id: uid(), date: dateIso, compteId, type: "credit", montant: Math.abs(m), motif: desc || (catNom ? String(catNom) : "Entrée importée") });
+        report.income++;
+      } else {
+        state.depenses.push({
+          id: uid(),
+          date: dateIso,
+          categorieId: findOrCreateCategorie(catNom),
+          personneId: persNom ? findOrCreatePersonne(persNom) : defPers,
+          compteId,
+          description: desc,
+          montant: m,
+          moyen: moy,
+        });
+        report.expenses++;
+      }
     }
-    saveState();
-    renderAll();
+    report.created.categories = state.categories.length - before.c;
+    report.created.personnes = state.personnes.length - before.p;
+    report.created.comptes = state.comptes.length - before.a;
+    _finishImport(report);
   }
 
   function exportDatabaseCsv() {
@@ -4199,170 +4231,189 @@ document.addEventListener("DOMContentLoaded", () => {
     return t;
   }
 
-  function importDatabaseCsv(text) {
-    const raw = text.replace(/^\uFEFF/, "");
-    const lines = raw.split(/\r?\n/);
-    let mode = null;
-    const personnes = [];
-    const categories = [];
-    const comptes = [];
-    const budgetsCat = {};
-    let budgetGlobal = 0;
-    const depenses = [];
-    const wishlist = [];
-    const wishlistCats = [];
-    const operations = [];
-    const transfers = [];
-    const factures = [];
-    const factureCats = [];
+  /* Ensure every record points at a category/person/account that actually exists.
+     Orphan references are the #1 reason imported rows "don't show" (blank category,
+     wrong balance, empty charts). Returns the number of references repaired. */
+  function reconcileReferences() {
+    let repaired = 0;
+    if (!state.categories.length) { state.categories = defaultState().categories; }
+    if (!state.personnes.length)  { state.personnes  = defaultState().personnes; }
+    if (!state.comptes.length)    { state.comptes    = defaultState().comptes; }
 
-    for (const line of lines) {
-      const t = line.trim();
-      if (!t) continue;
-      if (t.startsWith("##")) {
-        mode = t.slice(2).toUpperCase();
-        continue;
-      }
-      // Skip known header rows
-      const tl = t.toLowerCase();
-      if (
-        tl === "id,nom" ||
-        tl === "id,nom,type,solde_initial" ||
-        tl === "type,clef,valeur" ||
-        tl === "id,date,categorieid,personneid,compteid,description,montant,moyen" ||
-        tl.startsWith("id,date,categorieid,personneid,compteid") ||
-        tl === "id,date,compteid,type,montant,motif" ||
-        tl === "id,desc,prix,categorieid,priority,date,url,notes,done,createdat" ||
-        tl === "id,nom,icon,color" ||
-        tl === "id,fromcompteid,tocompteid,montant,date,motif" ||
-        tl === "id,nom,icon" ||
-        tl === "id,description,montant,dateemission,dateecheance,categorieid,compteid,typepaiement,statut,notes,datepaiement,createdat"
-      ) {
-        continue;
-      }
+    const catIds = new Set(state.categories.map((c) => c.id));
+    const persIds = new Set(state.personnes.map((p) => p.id));
+    const cptIds = new Set(state.comptes.map((c) => c.id));
+    const defCat = state.categories[0].id;
+    const defPers = state.personnes[0].id;
+    const defCpt = state.comptes.find((c) => c.type === "courant")?.id || state.comptes[0].id;
 
-      if (mode === "PERSONNES") {
-        const [id, nom] = splitCsvLine(line);
-        if (id && nom) personnes.push({ id, nom });
-      } else if (mode === "CATEGORIES") {
-        const _cp = splitCsvLineFull ? splitCsvLineFull(line) : splitCsvLine(line);
-        const [_cid, _cnom, _cpid] = Array.isArray(_cp) ? _cp : [_cp[0], _cp[1]];
-        if (_cid && _cnom) categories.push({ id: _cid, nom: _cnom, parentId: _cpid || undefined });
-      } else if (mode === "COMPTES") {
-        const parts = splitCsvLineFull(line);
-        if (parts.length >= 4) comptes.push({ id: parts[0], nom: parts[1], type: parts[2], soldeInitial: Number(parts[3]) || 0 });
-      } else if (mode === "BUDGETS") {
-        const parts = splitCsvLineFull(line);
-        if (parts[0] === "type") continue;
-        if (parts[0] === "global" && parts.length >= 3) budgetGlobal = Number(parts[2]) || 0;
-        if (parts[0] === "categorie" && parts.length >= 3) budgetsCat[parts[1]] = Number(parts[2]) || 0;
-      } else if (mode === "DEPENSES") {
-        const p = splitCsvLineFull(line);
-        if (p.length >= 7 && p[0] !== "id")
-          depenses.push({
-            id: p[0], date: p[1], categorieId: p[2], personneId: p[3], compteId: p[4],
-            description: p[5], montant: Number(p[6]) || 0, moyen: p[7] || "",
-            tags: p[8] ? p[8].split("|").filter(Boolean) : [],
-            recurrent: p[9] === "1", sourceRecurring: p[10] || "",
-          });
-      } else if (mode === "WISHLIST_CATEGORIES") {
-        if (t.toLowerCase().startsWith("id,")) continue;
-        const p = splitCsvLineFull(line);
-        if (p.length >= 2 && p[0] && p[0] !== "id")
-          wishlistCats.push({ id:p[0], nom:p[1]||"", icon:p[2]||"🛍️", color:Number(p[3])||0 });
-      } else if (mode === "WISHLIST") {
-        if (t.toLowerCase().startsWith("id,")) continue;
-        const p = splitCsvLineFull(line);
-        if (p.length >= 5 && p[0] && p[0] !== "id")
-          wishlist.push({ id:p[0], desc:p[1]||"", prix:Number(p[2])||0, categorieId:p[3]||"",
-            priority:p[4]||"moyenne", date:p[5]||"", url:p[6]||"", notes:p[7]||"",
-            done:p[8]==="1", createdAt:p[9]||"" });
-      } else if (mode === "OPERATIONS") {
-        if (t.toLowerCase().startsWith("id,")) continue;
-        const p = splitCsvLineFull(line);
-        if (p.length >= 5 && p[0] && p[0] !== "id")
-          operations.push({ id: p[0], date: p[1], compteId: p[2], type: p[3], montant: Number(p[4])||0, motif: p[5]||"" });
-      } else if (mode === "TRANSFERS") {
-        if (t.toLowerCase().startsWith("id,")) continue;
-        const p = splitCsvLineFull(line);
-        if (p.length >= 4 && p[0] && p[0] !== "id")
-          transfers.push({ id: p[0], fromCompteId: p[1], toCompteId: p[2], montant: Number(p[3])||0, date: p[4]||"", motif: p[5]||"" });
-      } else if (mode === "FACTURE_CATEGORIES") {
-        if (t.toLowerCase().startsWith("id,")) continue;
-        const p = splitCsvLineFull(line);
-        if (p.length >= 2 && p[0] && p[0] !== "id")
-          factureCats.push({ id: p[0], nom: p[1]||"", icon: p[2]||"🧾" });
-      } else if (mode === "FACTURES") {
-        if (t.toLowerCase().startsWith("id,")) continue;
-        const p = splitCsvLineFull(line);
-        if (p.length >= 9 && p[0] && p[0] !== "id")
-          factures.push({
-            id: p[0], description: p[1]||"", montant: Number(p[2])||0,
-            dateEmission: p[3]||"", dateEcheance: p[4]||"",
-            categorieId: p[5]||"", compteId: p[6]||"",
-            typePaiement: p[7]||"autre", statut: p[8]||"en_attente",
-            notes: p[9]||"", datePaiement: p[10]||null,
-            createdAt: p[11]||"",
-          });
+    (state.depenses || []).forEach((d) => {
+      if (!catIds.has(d.categorieId)) { d.categorieId = defCat; repaired++; }
+      if (!persIds.has(d.personneId)) { d.personneId = defPers; repaired++; }
+      if (!cptIds.has(d.compteId))    { d.compteId = defCpt; repaired++; }
+    });
+    (state.operations || []).forEach((o) => { if (!cptIds.has(o.compteId)) { o.compteId = defCpt; repaired++; } });
+    (state.transfers || []).forEach((t) => {
+      if (!cptIds.has(t.fromCompteId)) { t.fromCompteId = defCpt; repaired++; }
+      if (!cptIds.has(t.toCompteId))   { t.toCompteId = defCpt; repaired++; }
+    });
+    // Drop sub-category parent links that point nowhere
+    state.categories.forEach((c) => { if (c.parentId && !catIds.has(c.parentId)) { delete c.parentId; repaired++; } });
+    return repaired;
+  }
+
+  /* Single entry point: detects the file format, then routes to the right importer. */
+  function smartImportCsv(text) {
+    const raw = String(text || "").replace(/^\uFEFF/, "");
+    if (!raw.trim()) { _finishImport({ mode: "?", rowsRead: 0, skipped: 0, reasons: {}, error: "Fichier vide." }, true); return; }
+    const isFullDb = /(^|\n)\s*##\s*(DEPENSES|CATEGORIES|COMPTES|PERSONNES|FACTURES|WISHLIST)/i.test(raw);
+    if (isFullDb) importDatabaseCsv(raw);
+    else importDepensesCsv(raw);
+  }
+  window.smartImportCsv = smartImportCsv;
+
+  /* Common finish: persist to Firebase, re-render everything, show a report. */
+  function _finishImport(report, skipSave) {
+    try { renderAll(); } catch (e) {}
+    try { renderWishlist(); } catch (e) {}
+    try { renderFactures(); } catch (e) {}
+
+    if (!skipSave && !report.error) {
+      saveState();
+      window._allowEmptySave = true;
+      window._lastForceSave = Date.now();
+      if (typeof window._fbSaveData === "function" && window._fbUser) {
+        window._fbSaveData().then(() => { report.firebase = "ok"; }).catch((err) => { report.firebase = "err:" + err.message; });
       }
     }
-    // (wishlist and operations are now parsed inside the main loop above)
-    const _unused = null; // placeholder
+    showImportReport(report);
+  }
 
-    // Remplace TOUT — on écrase toutes les données existantes
-    state.personnes = personnes.length ? personnes : [];
-    state.categories = categories.length ? categories : [];
-    state.comptes = comptes.length ? comptes : [];
+  /* Visible, professional summary so nothing fails silently anymore. */
+  function showImportReport(report) {
+    const ge = byId("global-error"); if (ge) ge.textContent = "";
+    let host = byId("import-report"); 
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "import-report";
+      host.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:99999;max-width:340px;background:var(--s1,#111827);color:var(--text,#dde4f0);border:1px solid var(--border2,rgba(255,255,255,.12));border-radius:14px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.45);font-family:var(--font);font-size:13px;line-height:1.5;animation:slideIn .25s ease";
+      document.body.appendChild(host);
+    }
+    const r = report;
+    const ok = !r.error;
+    const rows = [];
+    if (r.error) {
+      rows.push(`<div style="color:var(--red,#f43f5e);font-weight:600">⚠️ ${r.error}</div>`);
+    } else if (r.mode === "database") {
+      const s = r.sections || {};
+      rows.push(`<div style="font-weight:600;margin-bottom:6px">✅ Base importée</div>`);
+      rows.push(`<div>${s.depenses||0} dépenses · ${s.comptes||0} comptes · ${s.categories||0} catégories</div>`);
+      rows.push(`<div>${s.operations||0} opérations · ${s.transfers||0} transferts · ${s.factures||0} factures · ${s.wishlist||0} achats</div>`);
+      if (r.repaired) rows.push(`<div style="color:var(--amber,#f59e0b)">🔧 ${r.repaired} référence(s) réparée(s)</div>`);
+    } else {
+      rows.push(`<div style="font-weight:600;margin-bottom:6px">✅ Import terminé</div>`);
+      rows.push(`<div>${r.expenses||0} dépenses ajoutées` + (r.income ? ` · ${r.income} entrée(s) d'argent` : "") + `</div>`);
+      const cr = r.created || {};
+      if (cr.categories || cr.personnes || cr.comptes) rows.push(`<div style="color:var(--muted2,#8292aa)">Créés : ${cr.categories||0} catég., ${cr.personnes||0} pers., ${cr.comptes||0} comptes</div>`);
+    }
+    if (ok && r.skipped) {
+      const det = Object.entries(r.reasons || {}).map(([k, v]) => `${v}× ${k}`).join(", ");
+      rows.push(`<div style="color:var(--amber,#f59e0b);margin-top:4px">⏭️ ${r.skipped} ligne(s) ignorée(s)${det ? " (" + det + ")" : ""}</div>`);
+    }
+    if (ok && window._fbUser) rows.push(`<div style="color:var(--green,#10d9a0);margin-top:4px">☁️ Sauvegardé sur Firebase</div>`);
+    else if (ok) rows.push(`<div style="color:var(--muted2,#8292aa);margin-top:4px">Connectez-vous pour sauvegarder sur Firebase</div>`);
+    rows.push(`<button onclick="this.parentElement.remove()" style="margin-top:10px;width:100%;padding:7px;background:var(--s2,#192035);border:1px solid var(--border2,rgba(255,255,255,.12));border-radius:8px;color:var(--text,#dde4f0);cursor:pointer;font-family:inherit;font-size:12px">Fermer</button>`);
+    host.innerHTML = rows.join("");
+    clearTimeout(window._importReportTimer);
+    if (ok) window._importReportTimer = setTimeout(() => { host && host.remove(); }, 9000);
+  }
+
+  function importDatabaseCsv(text) {
+    const raw = String(text).replace(/^\uFEFF/, "");
+    const matrix = parseCSV(raw, sniffDelimiter(raw)); // robust: handles quotes, commas/semicolons & newlines inside fields
+    const report = { mode: "database", rowsRead: 0, sections: {}, skipped: 0, reasons: {}, repaired: 0 };
+
+    const buckets = {
+      PERSONNES: [], CATEGORIES: [], COMPTES: [], BUDGETS: [],
+      DEPENSES: [], WISHLIST_CATEGORIES: [], WISHLIST: [],
+      OPERATIONS: [], TRANSFERS: [], FACTURE_CATEGORIES: [], FACTURES: [],
+    };
+    let mode = null;
+    for (const row of matrix) {
+      const first = String(row[0] || "").trim();
+      if (first.startsWith("##")) { mode = first.slice(2).toUpperCase(); if (!(mode in buckets)) buckets[mode] = []; continue; }
+      if (first.toLowerCase() === "id") continue;            // header row
+      if (first.toLowerCase() === "type" && mode === "BUDGETS") continue;
+      if (!mode) continue;                                    // data before any ## section
+      buckets[mode].push(row);
+    }
+
+    const personnes = [], categories = [], comptes = [], depenses = [], wishlist = [],
+          wishlistCats = [], operations = [], transfers = [], factures = [], factureCats = [];
+    const budgetsCat = {}; let budgetGlobal = 0;
+    const num = (v) => Number(v) || 0;
+
+    buckets.PERSONNES.forEach((p) => { if (p[0] && p[1]) personnes.push({ id: p[0], nom: p[1] }); });
+    buckets.CATEGORIES.forEach((c) => { if (c[0] && c[1]) categories.push({ id: c[0], nom: c[1], parentId: c[2] || undefined }); });
+    buckets.COMPTES.forEach((c) => { if (c.length >= 4) comptes.push({ id: c[0], nom: c[1], type: c[2], soldeInitial: num(c[3]) }); });
+    buckets.BUDGETS.forEach((b) => {
+      if (b[0] === "global" && b.length >= 3) budgetGlobal = num(b[2]);
+      if (b[0] === "categorie" && b.length >= 3) budgetsCat[b[1]] = num(b[2]);
+    });
+    buckets.DEPENSES.forEach((p) => {
+      if (p.length >= 7 && p[0] !== "id")
+        depenses.push({ id: p[0], date: p[1], categorieId: p[2], personneId: p[3], compteId: p[4],
+          description: p[5], montant: num(p[6]), moyen: p[7] || "",
+          tags: p[8] ? p[8].split("|").filter(Boolean) : [],
+          recurrent: p[9] === "1", sourceRecurring: p[10] || "" });
+    });
+    buckets.WISHLIST_CATEGORIES.forEach((p) => { if (p.length >= 2 && p[0]) wishlistCats.push({ id: p[0], nom: p[1] || "", icon: p[2] || "🛍️", color: num(p[3]) }); });
+    buckets.WISHLIST.forEach((p) => {
+      if (p.length >= 5 && p[0]) wishlist.push({ id: p[0], desc: p[1] || "", prix: num(p[2]), categorieId: p[3] || "",
+        priority: p[4] || "moyenne", date: p[5] || "", url: p[6] || "", notes: p[7] || "", done: p[8] === "1", createdAt: p[9] || "" });
+    });
+    buckets.OPERATIONS.forEach((p) => { if (p.length >= 5 && p[0]) operations.push({ id: p[0], date: p[1], compteId: p[2], type: p[3], montant: num(p[4]), motif: p[5] || "" }); });
+    buckets.TRANSFERS.forEach((p) => { if (p.length >= 4 && p[0]) transfers.push({ id: p[0], fromCompteId: p[1], toCompteId: p[2], montant: num(p[3]), date: p[4] || "", motif: p[5] || "" }); });
+    buckets.FACTURE_CATEGORIES.forEach((p) => { if (p.length >= 2 && p[0]) factureCats.push({ id: p[0], nom: p[1] || "", icon: p[2] || "🧾" }); });
+    buckets.FACTURES.forEach((p) => {
+      if (p.length >= 9 && p[0]) factures.push({ id: p[0], description: p[1] || "", montant: num(p[2]),
+        dateEmission: p[3] || "", dateEcheance: p[4] || "", categorieId: p[5] || "", compteId: p[6] || "",
+        typePaiement: p[7] || "autre", statut: p[8] || "en_attente", notes: p[9] || "", datePaiement: p[10] || null, createdAt: p[11] || "" });
+    });
+
+    report.sections = {
+      personnes: personnes.length, categories: categories.length, comptes: comptes.length,
+      depenses: depenses.length, operations: operations.length, transfers: transfers.length,
+      wishlist: wishlist.length, factures: factures.length,
+    };
+    report.rowsRead = Object.values(report.sections).reduce((a, b) => a + b, 0);
+
+    // ── Wipe-guard: a full-DB import REPLACES everything. Refuse to wipe if the file
+    //    yielded nothing meaningful (prevents a stray/empty CSV from erasing your data).
+    if (depenses.length === 0 && comptes.length === 0 && personnes.length === 0 && factures.length === 0 && wishlist.length === 0) {
+      report.error = "Aucune donnée exploitable trouvée (sections ##DEPENSES / ##COMPTES vides). Import annulé — vos données existantes sont intactes.";
+      _finishImport(report, /*skipSave*/ true);
+      return;
+    }
+
+    // Replace state
+    state.personnes = personnes;
+    state.categories = categories;
+    state.comptes = comptes;
     state.budgetMensuelGlobal = budgetGlobal;
     state.budgetsCategorie = budgetsCat;
     state.depenses = depenses;
     state.operations = operations;
-    state.transfers = transfers.length ? transfers : [];
-    state.wishlist = wishlist.length ? wishlist : [];
+    state.transfers = transfers;
+    state.wishlist = wishlist;
     if (wishlistCats.length) state.wishlistCategories = wishlistCats;
-    state.factures = factures.length ? factures : [];
+    state.factures = factures;
     if (factureCats.length) state.factureCategories = factureCats;
     state.version = 2;
 
-    // ── CRITIQUE : synchroniser window.state avec l'objet local ──
-    // Firebase lit window.state — sans ça, les données importées ne sont pas sauvegardées
+    report.repaired = reconcileReferences();
     window.state = state;
-
-    // Afficher immédiatement (avant la sauvegarde Firebase)
-    renderAll();
-    renderWishlist();
-    try { renderFactures(); } catch(e) {}
-
-    byId("global-error").textContent = "";
-    const hint = byId("import-db-hint");
-    if (hint) {
-      hint.style.display = "inline";
-      hint.textContent = `⏳ Import OK (${depenses.length} dépenses) — sauvegarde Firebase...`;
-    }
-
-    // Force Firebase save immédiat (bypass hash + empty guard)
-    window._allowEmptySave = true;
-    window._lastForceSave  = Date.now();
-
-    if (typeof window._fbSaveData === 'function' && window._fbUser) {
-      window._fbSaveData().then(() => {
-        if (hint) {
-          hint.textContent = `✅ ${depenses.length} dépenses, ${wishlist.length} wishlist, ${factures.length} factures — sauvegardés sur Firebase !`;
-          setTimeout(() => hint.style.display = "none", 4000);
-        }
-      }).catch(err => {
-        if (hint) {
-          hint.textContent = `✅ Import OK — ⚠️ Firebase : ${err.message}`;
-          setTimeout(() => hint.style.display = "none", 5000);
-        }
-      });
-    } else {
-      // Pas connecté : sauvegarde locale seulement
-      if (hint) {
-        hint.textContent = `✅ ${depenses.length} dépenses importées. Connectez-vous pour sauvegarder sur Firebase.`;
-        setTimeout(() => hint.style.display = "none", 4000);
-      }
-    }
+    _finishImport(report);
   }
 
   function splitCsvLine(line) {
@@ -4488,7 +4539,7 @@ document.addEventListener("DOMContentLoaded", () => {
   byId("file-db-import")?.addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    importDatabaseCsv(await f.text());
+    smartImportCsv(await f.text());
     e.target.value = "";
   });
 
@@ -4519,12 +4570,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Import CSV → Firebase : importDatabaseCsv gère maintenant tout (sync + save Firebase)
+  // Import CSV → Firebase : smartImportCsv détecte le format (base complète OU liste simple)
   byId("file-fb-import")?.addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     try {
-      importDatabaseCsv(await f.text());
+      smartImportCsv(await f.text());
     } catch(err) {
       const hint = byId("fb-import-hint");
       if (hint) { hint.style.display = "inline"; hint.textContent = "❌ Erreur : " + err.message; }
@@ -5653,18 +5704,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Detect format: if has ##DEPENSES → full database, else simple CSV
-    if (text.includes("##DEPENSES") || text.includes("##CATEGORIES")) {
-      importDatabaseCsv(text);
-      hint.style.color = "var(--green)";
-      hint.textContent = "✅ Base complète importée depuis Google Sheets !";
-    } else {
-      // Try as simple depenses CSV
-      importDepensesCsv(text);
-      hint.style.color = "var(--green)";
-      hint.textContent = "✅ Dépenses importées depuis Google Sheets !";
-    }
-    renderAll();
+    // smartImportCsv détecte automatiquement le format (base complète OU liste simple)
+    smartImportCsv(text);
+    hint.style.color = "var(--green)";
+    hint.textContent = "✅ Importé depuis Google Sheets !";
   }
 
   const btnGSheet = byId("btn-import-gsheet");
