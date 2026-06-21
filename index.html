@@ -2142,7 +2142,7 @@ select option.subcat-option {
            signInWithPopup, signInWithRedirect, getRedirectResult,
            signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc }
+  import { getFirestore, doc, setDoc, getDoc, onSnapshot }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2162,6 +2162,9 @@ select option.subcat-option {
   let _saving      = false;
   let _lastHash    = '';
   let _saveTimer   = null;
+  let _unsub       = null;   // active onSnapshot unsubscribe fn
+  let _lastSavedAt = 0;      // updatedAt of the doc version this device last wrote/applied
+  let _pendingSave = false;  // a local change is queued but not yet written
 
   const ui = id => document.getElementById(id);
 
@@ -2251,6 +2254,7 @@ select option.subcat-option {
       if (snap.exists()) {
         const data   = snap.data();
         const remote = data.state;
+        _lastSavedAt = data.updatedAt || 0;
         if (remote && (remote.version === 2 || Array.isArray(remote.depenses))) {
           remote.version = 2;
           if (typeof window._applyState === 'function') {
@@ -2312,7 +2316,10 @@ select option.subcat-option {
     console.log('[Firebase] Save:', depCount, 'dépenses,', cptCount, 'comptes');
 
     try {
-      await setDoc(doc(db, 'users', user.uid), { state: snapshot, updatedAt: Date.now() });
+      const writeAt = Date.now();
+      _pendingSave = false;
+      await setDoc(doc(db, 'users', user.uid), { state: snapshot, updatedAt: writeAt });
+      _lastSavedAt = writeAt; // remember our own write so the live listener ignores its echo
       setSyncStatus('✅ Sauvegardé', 2000);
       console.log('[Firebase] ✅ Sauvegardé');
     } catch(e) {
@@ -2327,9 +2334,42 @@ select option.subcat-option {
   // Debounced save — appelé depuis saveState()
   window._fbScheduleSave = function() {
     if (!_currentUser) return;
+    _pendingSave = true;
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => saveData(_currentUser), 3000);
   };
+
+  // ── Live cross-device sync ────────────────────────────────────────────────
+  // Listens to the user's Firestore document and applies remote changes in real
+  // time. Skips our own writes (optimistic echo + server-confirmed echo) and
+  // won't clobber a local edit that hasn't been saved yet.
+  function startRealtimeSync(user) {
+    stopRealtimeSync();
+    const ref = doc(db, 'users', user.uid);
+    _unsub = onSnapshot(ref, (snap) => {
+      if (!snap.exists()) return;
+      if (snap.metadata.hasPendingWrites) return; // our own optimistic write echoing back
+      if (_saving || _pendingSave) return;         // don't overwrite a local change in flight
+      const data = snap.data();
+      const ts = data.updatedAt || 0;
+      if (ts && ts === _lastSavedAt) return;        // server-confirmed echo of our own write
+      const remote = data.state;
+      if (!remote || !(remote.version === 2 || Array.isArray(remote.depenses))) return;
+      remote.version = 2;
+      if (typeof window._applyState === 'function') {
+        window._applyState(remote);   // mutates state in place + re-renders everything
+        _lastSavedAt = ts;
+        _lastHash = hashState();       // prevent an immediate echo-save of what we just applied
+        setSyncStatus('🔄 Mis à jour depuis un autre appareil', 2500);
+      }
+    }, (err) => {
+      console.error('[Firebase] Realtime sync error:', err);
+    });
+  }
+
+  function stopRealtimeSync() {
+    if (_unsub) { try { _unsub(); } catch (e) {} _unsub = null; }
+  }
 
   window._fbSaveData = async function() { if (_currentUser) await saveData(_currentUser); };
   window._fbLoadData = async function() { if (_currentUser) await loadData(_currentUser); };
@@ -2363,9 +2403,11 @@ select option.subcat-option {
       setLoggedIn(user);
       hideLoginPage();
       await loadData(user);
+      startRealtimeSync(user); // live updates across devices
     } else {
       _currentUser = null;
       window._fbUser = null;
+      stopRealtimeSync();
       setLoggedOut();
       if (typeof window._applyState === 'function') {
         const empty = { version:2, depenses:[], comptes:[], categories:[], personnes:[], budgetMensuelGlobal:0, budgetsCategorie:{}, wishlist:[], operations:[], transfers:[], wishlistCategories:[], spMonthlyBudget:0, spLocks:{}, factures:[], factureCategories:[] };
@@ -4000,6 +4042,8 @@ document.addEventListener("DOMContentLoaded", () => {
     renderReferentiels();
     renderWlCategories();
     renderWishlist();      // always render so cards are ready when page opens
+    try { renderFactures(); } catch (e) {}      // factures must render on Firebase load too
+    try { renderSavingPlanner(); } catch (e) {} // savings planner likewise
 
     // Dashboard must ALWAYS refresh on any data change, even when the user is on
     // another page — otherwise its KPIs/charts stay stale until a full page reload.
@@ -4020,6 +4064,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (name === "analyses") renderAnalysesCharts();
     if (name === "dashboard") renderDashboard();
     if (name === "wishlist") renderWishlist(); // ✅ FIX
+    if (name === "factures") { try { renderFactures(); } catch (e) {} }
+    if (name === "saving-planner") { try { renderSavingPlanner(); } catch (e) {} }
     requestAnimationFrame(() => resizeVisibleCharts());
     // close mobile nav
     const sb = document.getElementById("sidebar");
