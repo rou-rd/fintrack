@@ -2647,9 +2647,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (state.operations && state.operations.length) {
       lines.push("");
       lines.push("##OPERATIONS");
-      lines.push("id,date,compteId,type,montant,motif");
+      lines.push("id,date,compteId,type,montant,motif,factureId");
       state.operations.forEach((o) => {
-        lines.push(`${o.id},${o.date},${o.compteId},${o.type},${o.montant},${csvEsc(o.motif||"")}`);
+        lines.push(`${o.id},${o.date},${o.compteId},${o.type},${o.montant},${csvEsc(o.motif||"")},${o.factureId||""}`);
       });
     }
     if (state.transfers && state.transfers.length) {
@@ -2668,9 +2668,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     lines.push("");
     lines.push("##WISHLIST");
-    lines.push("id,desc,prix,categorieId,priority,date,url,notes,done,createdAt");
+    lines.push("id,desc,prix,categorieId,priority,date,url,notes,done,createdAt,savedAmount");
     (state.wishlist || []).forEach((w) => {
-      lines.push([w.id, csvEsc(w.desc), w.prix||0, w.categorieId||"", csvEsc(w.priority), w.date||"", csvEsc(w.url||""), csvEsc(w.notes||""), w.done?1:0, w.createdAt||""].join(","));
+      lines.push([w.id, csvEsc(w.desc), w.prix||0, w.categorieId||"", csvEsc(w.priority), w.date||"", csvEsc(w.url||""), csvEsc(w.notes||""), w.done?1:0, w.createdAt||"", w.savedAmount||0].join(","));
     });
     if (state.factureCategories && state.factureCategories.length) {
       lines.push("");
@@ -2681,13 +2681,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (state.factures && state.factures.length) {
       lines.push("");
       lines.push("##FACTURES");
-      lines.push("id,description,montant,dateEmission,dateEcheance,categorieId,compteId,typePaiement,statut,notes,datePaiement,createdAt");
+      lines.push("id,description,montant,dateEmission,dateEcheance,categorieId,compteId,typePaiement,statut,notes,datePaiement,createdAt,depCatId,labelId,linkedDepenseId,linkedOperationId");
       state.factures.forEach(f => lines.push([
         f.id, csvEsc(f.description), f.montant, f.dateEmission||"", f.dateEcheance||"",
         f.categorieId||"", f.compteId||"", f.typePaiement||"", f.statut||"en_attente",
-        csvEsc(f.notes||""), f.datePaiement||"", f.createdAt||""
+        csvEsc(f.notes||""), f.datePaiement||"", f.createdAt||"",
+        f.depCatId||"", f.labelId||"", f.linkedDepenseId||"", f.linkedOperationId||""
       ].join(",")));
     }
+    // Savings planner: monthly budget + per-item locks
+    lines.push("");
+    lines.push("##SAVINGS");
+    lines.push("type,clef,valeur");
+    lines.push(`budget,,${state.spMonthlyBudget || 0}`);
+    Object.entries(state.spLocks || {}).forEach(([wid, v]) => {
+      lines.push(`lock,${wid},${v}`);
+    });
     return "\ufeff" + lines.join("\n");
   }
 
@@ -3992,13 +4001,12 @@ document.addEventListener("DOMContentLoaded", () => {
     renderWlCategories();
     renderWishlist();      // always render so cards are ready when page opens
 
-    // Page-specific renders
-    if (activeId === "page-dashboard") renderDashboard();
+    // Dashboard must ALWAYS refresh on any data change, even when the user is on
+    // another page — otherwise its KPIs/charts stay stale until a full page reload.
+    try { renderDashboard(); } catch (e) {}
     if (activeId === "page-analyses") renderAnalysesCharts();
-
-    // Always update dashboard KPI cards even when on another page
-    // so next time user goes to dashboard it's fresh
-    // (renderDashboard already called above when on dashboard)
+    // Re-size charts if the dashboard is the visible page so canvases aren't 0×0
+    if (activeId === "page-dashboard") requestAnimationFrame(() => { try { resizeVisibleCharts(); } catch (e) {} });
   }
 
   function showPage(name) {
@@ -4351,6 +4359,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const personnes = [], categories = [], comptes = [], depenses = [], wishlist = [],
           wishlistCats = [], operations = [], transfers = [], factures = [], factureCats = [];
     const budgetsCat = {}; let budgetGlobal = 0;
+    const spLocks = {}; let spMonthlyBudget = null;
     const num = (v) => Number(v) || 0;
 
     buckets.PERSONNES.forEach((p) => { if (p[0] && p[1]) personnes.push({ id: p[0], nom: p[1] }); });
@@ -4359,6 +4368,11 @@ document.addEventListener("DOMContentLoaded", () => {
     buckets.BUDGETS.forEach((b) => {
       if (b[0] === "global" && b.length >= 3) budgetGlobal = num(b[2]);
       if (b[0] === "categorie" && b.length >= 3) budgetsCat[b[1]] = num(b[2]);
+    });
+    (buckets.SAVINGS || []).forEach((b) => {
+      if (b[0] === "type") return;
+      if (b[0] === "budget" && b.length >= 3) spMonthlyBudget = num(b[2]);
+      if (b[0] === "lock" && b.length >= 3 && b[1]) spLocks[b[1]] = num(b[2]);
     });
     buckets.DEPENSES.forEach((p) => {
       if (p.length >= 7 && p[0] !== "id")
@@ -4370,15 +4384,17 @@ document.addEventListener("DOMContentLoaded", () => {
     buckets.WISHLIST_CATEGORIES.forEach((p) => { if (p.length >= 2 && p[0]) wishlistCats.push({ id: p[0], nom: p[1] || "", icon: p[2] || "🛍️", color: num(p[3]) }); });
     buckets.WISHLIST.forEach((p) => {
       if (p.length >= 5 && p[0]) wishlist.push({ id: p[0], desc: p[1] || "", prix: num(p[2]), categorieId: p[3] || "",
-        priority: p[4] || "moyenne", date: p[5] || "", url: p[6] || "", notes: p[7] || "", done: p[8] === "1", createdAt: p[9] || "" });
+        priority: p[4] || "moyenne", date: p[5] || "", url: p[6] || "", notes: p[7] || "", done: p[8] === "1", createdAt: p[9] || "",
+        savedAmount: p[10] !== undefined && p[10] !== "" ? num(p[10]) : 0 });
     });
-    buckets.OPERATIONS.forEach((p) => { if (p.length >= 5 && p[0]) operations.push({ id: p[0], date: p[1], compteId: p[2], type: p[3], montant: num(p[4]), motif: p[5] || "" }); });
+    buckets.OPERATIONS.forEach((p) => { if (p.length >= 5 && p[0]) operations.push({ id: p[0], date: p[1], compteId: p[2], type: p[3], montant: num(p[4]), motif: p[5] || "", factureId: p[6] || undefined }); });
     buckets.TRANSFERS.forEach((p) => { if (p.length >= 4 && p[0]) transfers.push({ id: p[0], fromCompteId: p[1], toCompteId: p[2], montant: num(p[3]), date: p[4] || "", motif: p[5] || "" }); });
     buckets.FACTURE_CATEGORIES.forEach((p) => { if (p.length >= 2 && p[0]) factureCats.push({ id: p[0], nom: p[1] || "", icon: p[2] || "🧾" }); });
     buckets.FACTURES.forEach((p) => {
       if (p.length >= 9 && p[0]) factures.push({ id: p[0], description: p[1] || "", montant: num(p[2]),
         dateEmission: p[3] || "", dateEcheance: p[4] || "", categorieId: p[5] || "", compteId: p[6] || "",
-        typePaiement: p[7] || "autre", statut: p[8] || "en_attente", notes: p[9] || "", datePaiement: p[10] || null, createdAt: p[11] || "" });
+        typePaiement: p[7] || "autre", statut: p[8] || "en_attente", notes: p[9] || "", datePaiement: p[10] || null, createdAt: p[11] || "",
+        depCatId: p[12] || "", labelId: p[13] || "", linkedDepenseId: p[14] || "", linkedOperationId: p[15] || "" });
     });
 
     report.sections = {
@@ -4409,6 +4425,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (wishlistCats.length) state.wishlistCategories = wishlistCats;
     state.factures = factures;
     if (factureCats.length) state.factureCategories = factureCats;
+    if (spMonthlyBudget !== null) state.spMonthlyBudget = spMonthlyBudget;
+    if (Object.keys(spLocks).length) state.spLocks = spLocks;
     state.version = 2;
 
     report.repaired = reconcileReferences();
