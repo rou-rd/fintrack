@@ -2172,18 +2172,24 @@ select option.subcat-option {
     try {
       const s = window.state;
       if (!s) return '';
-      const dep    = s.depenses?.length || 0;
-      const cpt    = s.comptes?.length  || 0;
-      const cat    = s.categories?.length || 0;
-      const wl     = s.wishlist?.length || 0;
-      const fac    = s.factures?.length || 0;
-      const bud    = s.budgetMensuelGlobal || 0;
-      const ops    = s.operations?.length || 0;
-      const lastDep = s.depenses?.[s.depenses.length-1]?.id || '';
-      const lastFac = s.factures?.[s.factures.length-1]?.categorieId || '';
-      const lastCpt = s.comptes?.[s.comptes.length-1]?.soldeInitial || 0;
-      const budHash = Object.values(s.budgetsCategorie || {}).join(',');
-      return `${dep}-${cpt}-${cat}-${wl}-${fac}-${bud}-${ops}-${lastDep}-${lastFac}-${lastCpt}-${budHash}`;
+      // Complete fingerprint: serialize every persistent collection so ANY change
+      // (edits, renames, transfers, operations, savings…) is detected — not just
+      // additions. A coarse count-based hash silently skipped saves for edits.
+      const payload = JSON.stringify([
+        s.personnes, s.categories, s.comptes,
+        s.depenses, s.operations, s.transfers,
+        s.wishlist, s.wishlistCategories,
+        s.factures, s.factureCategories, s.factureCustomFields, s.factureLabels,
+        s.budgetMensuelGlobal, s.budgetsCategorie,
+        s.spMonthlyBudget, s.spLocks
+      ]);
+      // FNV-1a 32-bit over the payload (fast, tiny, collision-safe enough here)
+      let h = 0x811c9dc5;
+      for (let i = 0; i < payload.length; i++) {
+        h ^= payload.charCodeAt(i);
+        h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+      }
+      return payload.length + '-' + (h >>> 0).toString(16);
     } catch(e) { return Date.now().toString(); }
   }
 
