@@ -173,6 +173,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono
 /* MODALS */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;animation:fadeIn .15s ease}
 .modal-backdrop.hidden{display:none}
+tr.hidden{display:none}
 .modal-box{background:var(--s1);border:1px solid var(--border2);border-radius:var(--r3);padding:24px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;animation:modalIn .2s var(--ease)}
 @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
@@ -1138,6 +1139,59 @@ select option.subcat-option {
   padding-left: 20px;
 }
 
+/* ══════════════════════════════════════════════
+   MULTI-LINE EXPENSE (LIGNES DE DEPENSE)
+══════════════════════════════════════════════ */
+.lignes-wrap { display:flex; flex-direction:column; gap:10px; margin-bottom:10px; }
+.ligne-row {
+  background: var(--s2); border: 1px solid var(--border2); border-radius: var(--r2);
+  padding: 12px; display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr .7fr .8fr .9fr auto;
+  gap: 8px; align-items: end; position: relative;
+}
+.ligne-row .field-mini { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.ligne-row .field-mini label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+.ligne-row select, .ligne-row input {
+  background: var(--s1); border:1px solid var(--border2); color:var(--text);
+  padding:7px 8px; border-radius:var(--r); font-family:var(--font); font-size:12.5px; outline:none; width:100%;
+}
+.ligne-row select:focus, .ligne-row input:focus { border-color:var(--accent); }
+.ligne-total { font-weight:700; font-variant-numeric:tabular-nums; color:var(--accent); font-size:13.5px; padding:7px 0; }
+.ligne-del { flex-shrink:0; border:1px solid var(--border2); background:var(--s1); color:var(--red); border-radius:var(--r); width:30px; height:30px; cursor:pointer; font-size:14px; }
+.ligne-del:hover { background: var(--red-d); }
+.ligne-pricehint { grid-column:1/-1; font-size:11px; margin-top:-2px; display:flex; gap:6px; align-items:center; }
+.ligne-pricehint.up { color: var(--red); }
+.ligne-pricehint.down { color: var(--green); }
+.ligne-pricehint.flat { color: var(--muted2); }
+.btn-add-ligne { align-self:flex-start; }
+.lignes-total-bar {
+  display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
+  background: var(--accent-d); border:1px solid rgba(79,143,255,.25); border-radius: var(--r2);
+  margin: 10px 0 16px;
+}
+.lignes-total-bar .ltb-label { font-size:12.5px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.05em; }
+.lignes-total-bar .ltb-value { font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+.dep-lignes-detail { background:var(--s0); border-top:1px dashed var(--border2); }
+.dep-lignes-detail table { width:100%; font-size:12px; }
+.dep-lignes-detail td { padding:5px 8px; color:var(--muted2); }
+.badge-nlignes { font-size:10px; background:var(--purple-d); color:var(--purple); padding:1px 6px; border-radius:99px; font-weight:600; margin-left:6px; cursor:pointer; }
+@media(max-width:900px){
+  .ligne-row { grid-template-columns:1fr 1fr; }
+  .ligne-row .field-mini:nth-child(5), .ligne-row .field-mini:nth-child(6) { grid-column:span 1; }
+}
+
+/* Product registry / price history */
+.produit-row { display:flex; align-items:center; justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--border); gap:8px; }
+.produit-row:hover { background: var(--s2); }
+.produit-name { font-size:13px; color:var(--text); display:flex; align-items:center; gap:6px; cursor:pointer; }
+.produit-lastprice { font-size:11px; color:var(--muted2); }
+.price-diff-badge { font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:99px; }
+.price-diff-badge.up { background:var(--red-d); color:var(--red); }
+.price-diff-badge.down { background:var(--green-d); color:var(--green); }
+.price-diff-badge.flat { background:var(--s3); color:var(--muted2); }
+.price-history-table { width:100%; font-size:12.5px; margin-top:8px; }
+.price-history-table td, .price-history-table th { padding:6px 8px; border-bottom:1px solid var(--border); }
+
 </style>
 </head>
 <body>
@@ -1296,11 +1350,15 @@ select option.subcat-option {
       <div class="panel">
         <div class="panel-title"><span class="icon">➕</span> Nouvelle dépense</div>
 
-        <!-- Amount — hero field -->
+        <!-- Lignes de dépense (catégorie / sous-catégorie / produit / qté / prix / total) -->
         <div class="form-section">
-          <div class="field-icon field-amount">
-            <label><span class="lbl-icon">💰</span> Montant (TND)</label>
-            <input type="number" id="add-montant" min="0" step="0.001" placeholder="0.000" required inputmode="decimal"/>
+          <div class="form-section-title">🧾 Lignes de dépense</div>
+          <p class="hint">Ajoutez une ligne par produit ou poste acheté. Le total général est calculé automatiquement.</p>
+          <div class="lignes-wrap" id="add-lignes-wrap"></div>
+          <button type="button" class="btn btn-add-ligne" id="btn-add-ligne">➕ Ajouter une ligne</button>
+          <div class="lignes-total-bar">
+            <span class="ltb-label">Total général</span>
+            <span class="ltb-value" id="add-lignes-total">0.000 TND</span>
           </div>
         </div>
 
@@ -1311,19 +1369,6 @@ select option.subcat-option {
             <div class="field-icon">
               <label><span class="lbl-icon">📅</span> Date</label>
               <input type="date" id="add-date" required/>
-            </div>
-            <div class="field-icon" style="grid-column:1/-1">
-              <label><span class="lbl-icon">🏷️</span> Catégorie</label>
-              <select id="add-categorie"></select>
-              <!-- Sub-category picker: shown when parent has sub-cats -->
-              <div class="subcat-picker" id="add-subcat-picker">
-                <span class="subcat-picker-label">↳ Sous-catégorie</span>
-                <div class="subcat-chips" id="add-subcat-chips"></div>
-                <div class="subcat-add-row">
-                  <input class="subcat-add-inp" id="add-subcat-new-inp" placeholder="Nouvelle sous-catégorie…" autocomplete="off"/>
-                  <button class="subcat-add-btn" id="add-subcat-new-btn">+ Ajouter</button>
-                </div>
-              </div>
             </div>
             <div class="field-icon">
               <label><span class="lbl-icon">💳</span> Compte débité</label>
@@ -1634,6 +1679,37 @@ select option.subcat-option {
           <!-- Tree list -->
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">📋 Toutes les catégories</div>
           <div id="list-categories"></div>
+        </div>
+      </div>
+
+      <!-- PRODUITS & HISTORIQUE DES PRIX -->
+      <div class="panel" style="margin-top:18px">
+        <div class="panel-title"><span class="icon">🛒</span> Produits &amp; Historique des prix</div>
+        <p class="hint">Les produits sont créés automatiquement dès qu'ils sont saisis dans une ligne de dépense. Vous pouvez aussi les gérer ici, et consulter l'évolution de leur prix.</p>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr auto;margin-bottom:14px">
+          <div class="field">
+            <label>Catégorie / sous-catégorie</label>
+            <select id="new-produit-cat"></select>
+          </div>
+          <div class="field">
+            <label>Nom du produit</label>
+            <input type="text" id="new-produit-nom" placeholder="ex. Tomates"/>
+          </div>
+          <button class="btn btn-primary" id="btn-add-produit" style="align-self:flex-end">Ajouter</button>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr;margin-bottom:10px">
+          <div class="field"><label>Filtrer par catégorie</label><select id="filter-produit-cat"><option value="">Toutes les catégories</option></select></div>
+        </div>
+        <ul class="ref-list" id="list-produits"></ul>
+        <div id="produit-history-panel" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+            <div style="font-size:13px;font-weight:600" id="produit-history-title">Historique</div>
+            <button class="btn btn-sm" id="btn-close-produit-history">Fermer</button>
+          </div>
+          <table class="price-history-table">
+            <thead><tr><th style="text-align:left">Date</th><th>Quantité</th><th>Prix</th><th>Variation</th></tr></thead>
+            <tbody id="produit-history-tbody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -2066,15 +2142,22 @@ select option.subcat-option {
 
 <!-- ═══ MODAL: Edit Dépense ═══ -->
 <div id="modal-edit-depense" class="modal-backdrop hidden">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:760px">
     <div class="modal-header">
       <h3>✏️ Modifier la dépense</h3>
       <button class="modal-close" id="btn-edit-cancel">×</button>
     </div>
+    <div class="form-section" style="margin-bottom:6px">
+      <div class="form-section-title">🧾 Lignes de dépense</div>
+      <div class="lignes-wrap" id="edit-lignes-wrap"></div>
+      <button type="button" class="btn btn-add-ligne" id="btn-edit-add-ligne">➕ Ajouter une ligne</button>
+      <div class="lignes-total-bar">
+        <span class="ltb-label">Total général</span>
+        <span class="ltb-value" id="edit-lignes-total">0.000 TND</span>
+      </div>
+    </div>
     <div class="form-grid">
       <div class="field"><label>Date</label><input type="date" id="edit-date"/></div>
-      <div class="field"><label>Montant (TND)</label><input type="number" id="edit-montant" min="0" step="0.001"/></div>
-      <div class="field"><label>Catégorie</label><select id="edit-categorie"></select></div>
       <div class="field"><label>Personne</label><select id="edit-personne"></select></div>
       <div class="field"><label>Compte</label><select id="edit-compte"></select></div>
       <div class="field"><label>Description</label><input type="text" id="edit-desc"/></div>
@@ -2588,6 +2671,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ],
       budgetMensuelGlobal: 0,
       budgetsCategorie: {},
+      // Registre des produits — permet la reconnaissance automatique des prix
+      // et l'auto-complétion sur les lignes de dépense.
+      // { id, nom, categorieId (catégorie ou sous-catégorie), unite }
+      produits: [],
       depenses: [],
       operations: [],
       recurringDue: [],
@@ -2641,6 +2728,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!Array.isArray(state.factures))            state.factures = [];
     if (!Array.isArray(state.factureCategories) || state.factureCategories.length === 0)
       state.factureCategories = defaultState().factureCategories;
+    if (!Array.isArray(state.produits))            state.produits = [];
+    // Backfill : dépenses créées avant la refonte multi-lignes n'ont pas de `lignes`.
+    // On les laisse telles quelles (mode "montant simple") — elles restent modifiables.
     window.state = state;
     // renderAll peut être défini plus tard (chargement async) — on retente
     if (typeof renderAll === 'function') renderAll();
@@ -2887,6 +2977,61 @@ document.addEventListener("DOMContentLoaded", () => {
   function getRootCats() {
     return state.categories.filter(c => !c.parentId);
   }
+
+  // ── PRODUITS & HISTORIQUE DES PRIX ────────────────────────────────────────
+  function normNom(s) {
+    return String(s || "").trim().toLowerCase();
+  }
+  function getProduitsForCat(categorieId) {
+    if (!categorieId) return state.produits || [];
+    return (state.produits || []).filter(p => p.categorieId === categorieId);
+  }
+  // Recherche ou crée un produit (reconnaissance par nom normalisé + catégorie)
+  function findOrCreateProduit(nom, categorieId) {
+    const n = normNom(nom);
+    if (!n) return null;
+    let p = (state.produits || []).find(x => x.categorieId === categorieId && normNom(x.nom) === n);
+    if (!p) {
+      p = { id: uid(), nom: nom.trim(), categorieId: categorieId || null };
+      state.produits.push(p);
+    }
+    return p;
+  }
+  // Toutes les lignes historiques (triées par date croissante) pour un produit donné.
+  // Fonctionne aussi bien sur les lignes rattachées par produitId que par nom+catégorie
+  // (compatibilité avec des lignes anciennes/importées sans produitId).
+  function getPriceHistory(produitId) {
+    if (!produitId) return [];
+    const prod = (state.produits || []).find(p => p.id === produitId);
+    const rows = [];
+    (state.depenses || []).forEach(d => {
+      (d.lignes || []).forEach(l => {
+        const matches = l.produitId
+          ? l.produitId === produitId
+          : (prod && l.categorieId === (prod.categorieId) && normNom(l.designation) === normNom(prod.nom));
+        if (matches) {
+          rows.push({ date: d.date, prix: Number(l.prixUnitaire) || 0, quantite: Number(l.quantite) || 0, depenseId: d.id });
+        }
+      });
+    });
+    rows.sort((a, b) => new Date(a.date) - new Date(b.date));
+    return rows;
+  }
+  // Retourne le dernier prix connu d'un produit (avant une date donnée, optionnel).
+  function getLastKnownPrice(produitId, beforeDateIso) {
+    const hist = getPriceHistory(produitId);
+    const filtered = beforeDateIso ? hist.filter(h => new Date(h.date) < new Date(beforeDateIso)) : hist;
+    return filtered.length ? filtered[filtered.length - 1] : null;
+  }
+  // Calcule le badge de variation de prix { diff, pct, direction } entre ancien et nouveau prix.
+  function computePriceDiff(oldPrice, newPrice) {
+    if (oldPrice == null || !isFinite(oldPrice) || oldPrice === 0) return null;
+    const diff = newPrice - oldPrice;
+    const pct = (diff / oldPrice) * 100;
+    const direction = Math.abs(diff) < 0.0005 ? "flat" : diff > 0 ? "up" : "down";
+    return { diff, pct, direction };
+  }
+
   function nomWlCategorie(id) {
     if (!id) return "";
     return (state.wishlistCategories || []).find(c => c.id === id)?.nom || "";
@@ -3605,18 +3750,37 @@ document.addEventListener("DOMContentLoaded", () => {
     tb.innerHTML = rows.map((d) => {
       const tags = (d.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
       const recBadge = d.recurrent ? `<span class="badge-rec">🔁</span>` : "";
+      const nLignes = (d.lignes || []).length;
+      const lignesBadge = nLignes > 1 ? `<span class="badge-nlignes" data-toggle-lignes="${escapeHtml(d.id)}">🧾 ${nLignes} lignes</span>` : "";
+      const catCell = (() => {
+        const cat = state.categories.find(c => c.id === d.categorieId);
+        if (cat && cat.parentId) {
+          const par = state.categories.find(c => c.id === cat.parentId);
+          return par
+            ? `<span style="opacity:.65">${escapeHtml(par.nom)}</span> <span style="opacity:.5;font-size:9px">›</span> ${escapeHtml(cat.nom)}`
+            : escapeHtml(cat.nom);
+        }
+        return escapeHtml(nomCategorie(d.categorieId));
+      })();
+      const detailRow = nLignes > 1 ? `<tr class="dep-lignes-detail hidden" id="lignes-detail-${escapeHtml(d.id)}">
+        <td colspan="8">
+          <table>
+            <thead><tr><th style="text-align:left">Catégorie</th><th style="text-align:left">Désignation</th><th>Qté</th><th>Prix unit.</th><th>Total</th></tr></thead>
+            <tbody>
+              ${d.lignes.map(l => `<tr>
+                <td>${escapeHtml(nomCategorie(l.sousCategorieId || l.categorieId))}</td>
+                <td>${escapeHtml(l.designation || "—")}</td>
+                <td class="num">${l.quantite}</td>
+                <td class="num">${formatMoney(l.prixUnitaire)}</td>
+                <td class="num">${formatMoney(l.total)}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        </td>
+      </tr>` : "";
       return `<tr>
         <td>${escapeHtml(new Date(d.date).toLocaleDateString("fr-FR"))}</td>
-        <td><span class="badge">${(() => {
-            const cat = state.categories.find(c => c.id === d.categorieId);
-            if (cat && cat.parentId) {
-              const par = state.categories.find(c => c.id === cat.parentId);
-              return par
-                ? `<span style="opacity:.65">${escapeHtml(par.nom)}</span> <span style="opacity:.5;font-size:9px">›</span> ${escapeHtml(cat.nom)}`
-                : escapeHtml(cat.nom);
-            }
-            return escapeHtml(nomCategorie(d.categorieId));
-          })()}</span></td>
+        <td><span class="badge">${catCell}</span>${lignesBadge}</td>
         <td>${escapeHtml(nomPersonne(d.personneId))}</td>
         <td>${escapeHtml(nomCompte(d.compteId))}</td>
         <td>${escapeHtml(d.description || "—")}${recBadge}</td>
@@ -3626,8 +3790,15 @@ document.addEventListener("DOMContentLoaded", () => {
           <button type="button" class="btn btn-sm btn-edit" data-edit="${escapeHtml(d.id)}">✏️</button>
           <button type="button" class="btn btn-sm btn-danger" data-del="${escapeHtml(d.id)}">🗑️</button>
         </td>
-      </tr>`;
+      </tr>${detailRow}`;
     }).join("");
+
+    tb.querySelectorAll("[data-toggle-lignes]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = byId("lignes-detail-" + btn.getAttribute("data-toggle-lignes"));
+        if (row) row.classList.toggle("hidden");
+      });
+    });
 
     tb.querySelectorAll("[data-del]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -3864,8 +4035,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const id = btn.getAttribute("data-cid");
         const cat = state.categories.find(c => c.id === id);
         const subs = getSubCats(id);
-        if (state.depenses.some((d) => d.categorieId === id)) { alert("Impossible : des dépenses utilisent cette catégorie."); return; }
+        const usedTopLevel = state.depenses.some((d) => d.categorieId === id);
+        const usedInLignes = state.depenses.some((d) => (d.lignes || []).some(l => l.categorieId === id || l.sousCategorieId === id));
+        if (usedTopLevel || usedInLignes) { alert("Impossible : des dépenses utilisent cette catégorie (ou une de ses lignes)."); return; }
         if (subs.length) { alert("Impossible : cette catégorie a des sous-catégories. Supprimez-les d'abord."); return; }
+        if ((state.produits || []).some(p => p.categorieId === id)) { alert("Impossible : des produits sont enregistrés dans cette catégorie. Supprimez-les d'abord."); return; }
         confirmAction("Supprimer cette catégorie ?", () => {
           delete state.budgetsCategorie[id];
           state.categories = state.categories.filter((c) => c.id !== id);
@@ -3888,7 +4062,131 @@ document.addEventListener("DOMContentLoaded", () => {
         };
       });
     });
+
+    renderProduits();
   }
+
+  // ── PRODUITS : gestion + historique des prix (Référentiels) ──────────────
+  let _selectedProduitId = null;
+  function renderProduits() {
+    const newCatSel = byId("new-produit-cat");
+    const filterCatSel = byId("filter-produit-cat");
+    if (newCatSel) fillCatSelect(newCatSel, false, false);
+    if (filterCatSel) fillCatSelect(filterCatSel, "Toutes les catégories", false);
+
+    const lp = byId("list-produits");
+    if (!lp) return;
+    const filterCat = filterCatSel ? filterCatSel.value : "";
+    const items = (state.produits || [])
+      .filter(p => !filterCat || p.categorieId === filterCat)
+      .slice()
+      .sort((a, b) => a.nom.localeCompare(b.nom));
+
+    if (!items.length) {
+      lp.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px">Aucun produit. Ajoutez-en un ci-dessus, ou saisissez une désignation dans une ligne de dépense.</p>';
+      return;
+    }
+    lp.innerHTML = items.map(p => {
+      const hist = getPriceHistory(p.id);
+      const last = hist.length ? hist[hist.length - 1] : null;
+      const prev = hist.length > 1 ? hist[hist.length - 2] : null;
+      let diffHtml = "";
+      if (last && prev) {
+        const diff = computePriceDiff(prev.prix, last.prix);
+        if (diff) {
+          const sign = diff.diff >= 0 ? "+" : "";
+          diffHtml = `<span class="price-diff-badge ${diff.direction}">${sign}${diff.diff.toFixed(3)} (${sign}${diff.pct.toFixed(0)}%)</span>`;
+        }
+      }
+      return `<li class="produit-row">
+        <span class="produit-name" data-produit-hist="${escapeHtml(p.id)}">
+          🛒 ${escapeHtml(p.nom)}
+          <span style="opacity:.55;font-size:11px">— ${escapeHtml(nomCategorie(p.categorieId))}</span>
+        </span>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${last ? `<span class="produit-lastprice">${formatMoney(last.prix)}</span>` : ""}
+          ${diffHtml}
+          <button class="btn btn-sm btn-edit btn-edit-produit" data-pid="${escapeHtml(p.id)}" data-nom="${escapeHtml(p.nom)}">✏️</button>
+          <button class="btn btn-sm btn-danger btn-del-produit" data-pid="${escapeHtml(p.id)}">🗑️</button>
+        </div>
+      </li>`;
+    }).join("");
+
+    lp.querySelectorAll("[data-produit-hist]").forEach(el => {
+      el.addEventListener("click", () => showProduitHistory(el.getAttribute("data-produit-hist")));
+    });
+    lp.querySelectorAll(".btn-del-produit").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-pid");
+        if (state.depenses.some(d => (d.lignes || []).some(l => l.produitId === id))) {
+          alert("Impossible : ce produit est référencé par des lignes de dépense.");
+          return;
+        }
+        confirmAction("Supprimer ce produit ?", () => {
+          state.produits = state.produits.filter(p => p.id !== id);
+          saveState(); renderAll();
+        });
+      });
+    });
+    lp.querySelectorAll(".btn-edit-produit").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-pid");
+        const nouveauNom = prompt("Nouveau nom du produit :", btn.getAttribute("data-nom"));
+        if (!nouveauNom || !nouveauNom.trim()) return;
+        const p = state.produits.find(x => x.id === id);
+        if (p) p.nom = nouveauNom.trim();
+        saveState(); renderAll();
+      });
+    });
+  }
+
+  function showProduitHistory(produitId) {
+    _selectedProduitId = produitId;
+    const p = (state.produits || []).find(x => x.id === produitId);
+    const panel = byId("produit-history-panel");
+    const title = byId("produit-history-title");
+    const tbody = byId("produit-history-tbody");
+    if (!panel || !tbody || !p) return;
+    const hist = getPriceHistory(produitId);
+    title.textContent = `📈 Historique — ${p.nom} (${nomCategorie(p.categorieId)})`;
+    if (!hist.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty">Aucun achat enregistré pour ce produit.</td></tr>`;
+    } else {
+      let prevPrice = null;
+      tbody.innerHTML = hist.map(h => {
+        const diff = prevPrice != null ? computePriceDiff(prevPrice, h.prix) : null;
+        prevPrice = h.prix;
+        const diffCell = diff
+          ? `<span class="price-diff-badge ${diff.direction}">${diff.diff >= 0 ? "+" : ""}${diff.diff.toFixed(3)} (${diff.diff >= 0 ? "+" : ""}${diff.pct.toFixed(0)}%)</span>`
+          : `<span class="price-diff-badge flat">—</span>`;
+        return `<tr>
+          <td>${escapeHtml(new Date(h.date).toLocaleDateString("fr-FR"))}</td>
+          <td class="num">${h.quantite}</td>
+          <td class="num">${formatMoney(h.prix)}</td>
+          <td>${diffCell}</td>
+        </tr>`;
+      }).join("");
+    }
+    panel.style.display = "";
+  }
+  byId("btn-close-produit-history")?.addEventListener("click", () => {
+    byId("produit-history-panel").style.display = "none";
+  });
+  byId("filter-produit-cat")?.addEventListener("change", () => renderProduits());
+
+  byId("btn-add-produit")?.addEventListener("click", () => {
+    const catId = byId("new-produit-cat")?.value;
+    const nom = byId("new-produit-nom")?.value.trim();
+    if (!catId) { alert("Choisissez une catégorie."); return; }
+    if (!nom) return;
+    if ((state.produits || []).some(p => p.categorieId === catId && p.nom.toLowerCase() === nom.toLowerCase())) {
+      alert("Ce produit existe déjà dans cette catégorie.");
+      return;
+    }
+    state.produits.push({ id: uid(), nom, categorieId: catId });
+    byId("new-produit-nom").value = "";
+    saveState(); renderAll();
+  });
 
   function renderAnalysesCharts() {
     const dep = filteredDepensesAnalyses();
@@ -4792,34 +5090,54 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ── EDIT DEPENSE MODAL ───────────────────────────────────────────────────
+  // ── EDIT DEPENSE MODAL (multi-lignes) ────────────────────────────────────
   let _editDepId = null;
   function openEditDepense(id) {
     const d = state.depenses.find(x => x.id === id);
     if (!d) return;
     _editDepId = id;
     byId("edit-date").value = d.date ? d.date.slice(0,10) : "";
-    byId("edit-montant").value = d.montant;
     byId("edit-desc").value = d.description || "";
     byId("edit-moyen").value = d.moyen || "";
     byId("edit-recurrent").checked = !!d.recurrent;
-    fillSelect(byId("edit-categorie"), state.categories, "nom", "id", false);
     fillSelect(byId("edit-personne"), state.personnes, "nom", "id", false);
     fillSelect(byId("edit-compte"), state.comptes, "nom", "id", false);
-    byId("edit-categorie").value = d.categorieId;
     byId("edit-personne").value = d.personneId;
     byId("edit-compte").value = d.compteId;
     _editTags = [...(d.tags || [])];
     renderTagsInWrap("edit-tags-wrap", _editTags);
+    // Dépenses créées avant la refonte multi-lignes n'ont pas de `lignes` : on
+    // synthétise une ligne unique à partir de l'ancien montant/catégorie pour
+    // permettre leur édition/itemisation.
+    let initial = d.lignes && d.lignes.length ? d.lignes : null;
+    if (!initial) {
+      const cat = state.categories.find(c => c.id === d.categorieId);
+      const isSub = cat && cat.parentId;
+      initial = [{
+        categorieId: isSub ? cat.parentId : (d.categorieId || ""),
+        sousCategorieId: isSub ? cat.id : "",
+        designation: d.description || "",
+        quantite: 1,
+        prixUnitaire: d.montant || 0,
+      }];
+    }
+    editLignesEditor.reset(initial);
     byId("modal-edit-depense").classList.remove("hidden");
   }
+
+  const editLignesEditor = createLignesEditor({ wrapId: "edit-lignes-wrap", totalId: "edit-lignes-total" });
+  byId("btn-edit-add-ligne")?.addEventListener("click", () => editLignesEditor.addRow());
 
   byId("btn-edit-save")?.addEventListener("click", () => {
     const d = state.depenses.find(x => x.id === _editDepId);
     if (!d) return;
+    const lignes = editLignesEditor.getLignes();
+    if (!lignes.length) { alert("Ajoutez au moins une ligne valide (catégorie, quantité et prix)."); return; }
     d.date = new Date(byId("edit-date").value + "T12:00:00").toISOString();
-    d.montant = parseFloat(byId("edit-montant").value) || d.montant;
-    d.categorieId = byId("edit-categorie").value;
+    d.lignes = lignes;
+    d.montant = editLignesEditor.getTotal();
+    d.categorieId = lignes[0].sousCategorieId || lignes[0].categorieId;
+    d.sousCategorieId = lignes[0].sousCategorieId || "";
     d.personneId = byId("edit-personne").value;
     d.compteId = byId("edit-compte").value;
     d.description = byId("edit-desc").value.trim();
@@ -4864,35 +5182,180 @@ document.addEventListener("DOMContentLoaded", () => {
     byId(id).addEventListener("click", (e) => { if (e.target === byId(id)) byId(id).classList.add("hidden"); });
   });
 
-  // ── UPDATE btn-add-depense TO INCLUDE TAGS + RECURRENT ───────────────────
-  // Patch existing listener: we need to intercept the original
-  // We'll replace the handler by cloning button
+  // ── LIGNES DE DEPENSE : éditeur générique réutilisable (ajout + modification) ──
+  // Chaque dépense contient désormais plusieurs lignes (catégorie, sous-catégorie,
+  // désignation/produit, quantité, prix unitaire, total). Le total général de la
+  // dépense = somme des totaux de ligne, recalculé en temps réel.
+  function createLignesEditor(opts) {
+    function emptyLigne() { return { _rid: uid(), categorieId: "", sousCategorieId: "", designation: "", quantite: "", prixUnitaire: "" }; }
+    let lignes = (opts.initialLignes && opts.initialLignes.length)
+      ? opts.initialLignes.map(l => ({ ...l, _rid: uid() }))
+      : [emptyLigne()];
+
+    function effectiveCatId(l) { return l.sousCategorieId || l.categorieId || ""; }
+    function lineTotal(l) { return (Number(l.quantite) || 0) * (Number(l.prixUnitaire) || 0); }
+    function total() { return lignes.reduce((s, l) => s + lineTotal(l), 0); }
+
+    function findExistingProduit(l) {
+      const catId = effectiveCatId(l);
+      if (!l.designation || !catId) return null;
+      return (state.produits || []).find(p => p.categorieId === catId && normNom(p.nom) === normNom(l.designation)) || null;
+    }
+
+    function buildPriceHint(l) {
+      const prixNum = Number(l.prixUnitaire);
+      if (!l.designation || !isFinite(prixNum) || prixNum <= 0) return "";
+      const prod = findExistingProduit(l);
+      if (!prod) return "";
+      const last = getLastKnownPrice(prod.id);
+      if (!last) return "";
+      const diff = computePriceDiff(last.prix, prixNum);
+      if (!diff) return "";
+      const arrow = diff.direction === "up" ? "▲" : diff.direction === "down" ? "▼" : "→";
+      const sign = diff.diff >= 0 ? "+" : "";
+      return `<div class="ligne-pricehint ${diff.direction}">
+        ${arrow} Ancien prix : <strong>${formatMoney(last.prix)}</strong> → Nouveau : <strong>${formatMoney(prixNum)}</strong>
+        &nbsp;(${sign}${diff.diff.toFixed(3)} TND, ${sign}${diff.pct.toFixed(0)}%)
+      </div>`;
+    }
+
+    function rowHtml(l) {
+      const roots = getRootCats();
+      const subs = l.categorieId ? getSubCats(l.categorieId) : [];
+      const catOpts = `<option value="">—</option>` + roots.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === l.categorieId ? "selected" : ""}>${escapeHtml(c.nom)}</option>`).join("");
+      const subOpts = `<option value="">—</option>` + subs.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === l.sousCategorieId ? "selected" : ""}>${escapeHtml(c.nom)}</option>`).join("");
+      const produits = getProduitsForCat(effectiveCatId(l));
+      const dlId = `dl_${l._rid}`;
+      return `<div class="ligne-row" data-rid="${l._rid}">
+        <div class="field-mini"><label>Catégorie</label><select data-f="categorieId">${catOpts}</select></div>
+        <div class="field-mini"><label>Sous-catégorie</label><select data-f="sousCategorieId" ${subs.length ? "" : "disabled"}>${subOpts}</select></div>
+        <div class="field-mini"><label>Désignation</label>
+          <input type="text" data-f="designation" list="${dlId}" value="${escapeHtml(l.designation || "")}" placeholder="ex. Tomates" autocomplete="off"/>
+          <datalist id="${dlId}">${produits.map(p => `<option value="${escapeHtml(p.nom)}"></option>`).join("")}</datalist>
+        </div>
+        <div class="field-mini"><label>Qté</label><input type="number" min="0" step="0.001" data-f="quantite" value="${l.quantite ?? ""}" inputmode="decimal"/></div>
+        <div class="field-mini"><label>Prix unit.</label><input type="number" min="0" step="0.001" data-f="prixUnitaire" value="${l.prixUnitaire ?? ""}" inputmode="decimal"/></div>
+        <div class="field-mini"><label>Total</label><div class="ligne-total">${formatMoney(lineTotal(l))}</div></div>
+        <button type="button" class="ligne-del" data-del="${l._rid}" title="Supprimer la ligne">✕</button>
+        ${buildPriceHint(l)}
+      </div>`;
+    }
+
+    function updateTotalDisplay() {
+      const totalEl = byId(opts.totalId);
+      if (totalEl) totalEl.textContent = formatMoney(total());
+    }
+
+    function wireRows() {
+      const wrap = byId(opts.wrapId);
+      if (!wrap) return;
+      wrap.querySelectorAll(".ligne-row").forEach(rowEl => {
+        const rid = rowEl.getAttribute("data-rid");
+        const l = lignes.find(x => x._rid === rid);
+        if (!l) return;
+        rowEl.querySelectorAll("[data-f]").forEach(inp => {
+          inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => {
+            const f = inp.getAttribute("data-f");
+            l[f] = inp.value;
+            if (f === "categorieId") { l.sousCategorieId = ""; render(); return; }
+            const totalCell = rowEl.querySelector(".ligne-total");
+            if (totalCell) totalCell.textContent = formatMoney(lineTotal(l));
+            updateTotalDisplay();
+            if (f === "designation" || f === "prixUnitaire" || f === "sousCategorieId") {
+              const old = rowEl.querySelector(".ligne-pricehint");
+              if (old) old.remove();
+              const html = buildPriceHint(l);
+              if (html) rowEl.insertAdjacentHTML("beforeend", html);
+            }
+          });
+        });
+        rowEl.querySelector("[data-del]")?.addEventListener("click", () => {
+          lignes = lignes.filter(x => x._rid !== rid);
+          if (!lignes.length) lignes.push(emptyLigne());
+          render();
+        });
+      });
+    }
+
+    function render() {
+      const wrap = byId(opts.wrapId);
+      if (!wrap) return;
+      wrap.innerHTML = lignes.map(rowHtml).join("");
+      wireRows();
+      updateTotalDisplay();
+    }
+
+    function addRow() { lignes.push(emptyLigne()); render(); }
+    function reset(initial) {
+      lignes = (initial && initial.length) ? initial.map(l => ({ ...l, _rid: uid() })) : [emptyLigne()];
+      render();
+    }
+    // Construit les lignes finales prêtes à être enregistrées (crée/relie les produits).
+    function getLignes() {
+      return lignes
+        .filter(l => (Number(l.quantite) || 0) > 0 && (Number(l.prixUnitaire) || 0) >= 0 && l.categorieId)
+        .map(l => {
+          const catId = l.sousCategorieId || l.categorieId;
+          const qte = Number(l.quantite) || 0;
+          const prix = Number(l.prixUnitaire) || 0;
+          let produitId = null;
+          if (l.designation && l.designation.trim()) {
+            const prod = findOrCreateProduit(l.designation, catId);
+            produitId = prod ? prod.id : null;
+          }
+          return {
+            id: l.id || uid(),
+            categorieId: l.categorieId,
+            sousCategorieId: l.sousCategorieId || "",
+            produitId,
+            designation: (l.designation || "").trim(),
+            quantite: qte,
+            prixUnitaire: prix,
+            total: parseFloat((qte * prix).toFixed(3)),
+          };
+        });
+    }
+    function getTotal() { return parseFloat(total().toFixed(3)); }
+    function isEmpty() { return getLignes().length === 0; }
+
+    render();
+    return { addRow, reset, getLignes, getTotal, isEmpty, render };
+  }
+
+  const addLignesEditor = createLignesEditor({ wrapId: "add-lignes-wrap", totalId: "add-lignes-total" });
+  byId("btn-add-ligne")?.addEventListener("click", () => addLignesEditor.addRow());
+
+  // ── SUBMIT : Nouvelle dépense (multi-lignes) ──────────────────────────────
   (function patchAddDepense() {
     const oldBtn = byId("btn-add-depense");
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.replaceWith(newBtn);
     newBtn.addEventListener("click", () => {
-      const montant = Number(byId("add-montant").value);
-      if (!montant || montant <= 0) return;
+      const lignes = addLignesEditor.getLignes();
+      if (!lignes.length) { alert("Ajoutez au moins une ligne valide (quantité et prix)."); return; }
+      const montant = addLignesEditor.getTotal();
+      if (!montant || montant <= 0) { alert("Le total de la dépense doit être supérieur à 0."); return; }
       const dep = {
         id: uid(),
         date: new Date(byId("add-date").value + "T12:00:00").toISOString(),
-        categorieId: byId("add-categorie").value,
+        categorieId: lignes[0].sousCategorieId || lignes[0].categorieId,
+        sousCategorieId: lignes[0].sousCategorieId || "",
         personneId: byId("add-personne").value,
         compteId: byId("add-compte").value,
         description: byId("add-desc").value.trim(),
         montant,
+        lignes,
         moyen: byId("add-moyen").value.trim(),
         tags: [..._addTags],
         recurrent: byId("add-recurrent").checked,
       };
       state.depenses.push(dep);
-      byId("add-montant").value = "";
       byId("add-desc").value = "";
       byId("add-moyen").value = "";
       byId("add-recurrent").checked = false;
       _addTags = [];
       renderTagsInWrap("add-tags-wrap", _addTags);
+      addLignesEditor.reset();
       saveState(); renderAll();
     });
   })();
@@ -7179,7 +7642,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => {
         const addSection = document.getElementById('page-depenses');
         if (addSection) addSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        const firstInput = document.getElementById('add-montant');
+        const firstInput = document.querySelector('#add-lignes-wrap input[data-f="designation"]');
         if (firstInput) firstInput.focus();
       }, 120);
     });
