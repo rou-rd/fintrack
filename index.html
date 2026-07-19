@@ -5367,9 +5367,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const subs = getSubCats(selectedId);
         const subChipsHtml = subs.length ? `<div style="margin-top:10px">
           <div class="catpicker-row-label">Sous-catégorie</div>
-          <div class="catpicker-chips">${subs.map(s =>
-            `<span class="catchip subchip ${s.id === selectedSubId ? "selected" : ""}" data-subpick="${escapeHtml(s.id)}">${escapeHtml(s.nom)}</span>`
-          ).join("")}</div>
+          <div class="catpicker-chips">
+            <span class="catchip subchip ${!selectedSubId ? "selected" : ""}" data-subpick="">Aucune</span>
+            ${subs.map(s =>
+              `<span class="catchip subchip ${s.id === selectedSubId ? "selected" : ""}" data-subpick="${escapeHtml(s.id)}">${escapeHtml(s.nom)}</span>`
+            ).join("")}
+          </div>
         </div>` : "";
         wrap.innerHTML = `<div class="catpicker-selected">
           <span>🏷️ ${escapeHtml(cat ? cat.nom : "—")}</span>
@@ -5444,18 +5447,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Sélectionne une catégorie (racine ou sous-catégorie). Si on choisit
     // directement une sous-catégorie via la recherche, sa racine est
     // sélectionnée et la sous-catégorie est déjà cochée — visible d'un coup.
+    // Sinon, la dépense reste au niveau de la catégorie racine (« Aucune »
+    // sous-catégorie) tant que l'utilisateur n'en choisit pas une.
     function select(id) {
       const cat = state.categories.find(c => c.id === id);
       const isSub = cat && cat.parentId;
       selectedId = isSub ? cat.parentId : id;
       selectedSubId = isSub ? id : "";
-      // Si la catégorie choisie a des sous-catégories et qu'aucune n'est
-      // encore sélectionnée, on en pré-sélectionne une pour que tout soit
-      // visible dès le départ (l'utilisateur peut la changer en un clic).
-      if (!selectedSubId) {
-        const subs = getSubCats(selectedId);
-        if (subs.length) selectedSubId = subs[0].id;
-      }
       searchQuery = "";
       render();
       if (api.onChange) api.onChange(selectedId, selectedSubId);
