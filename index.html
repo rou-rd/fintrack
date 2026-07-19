@@ -139,6 +139,27 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 thead{background:var(--s2)}
 th{padding:10px 12px;text-align:left;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;user-select:none}
 th.th-sort{cursor:pointer;transition:color .15s}th.th-sort:hover{color:var(--text)}th.th-sort.active{color:var(--accent)}
+button.th-sort.active{border-color:var(--accent);color:var(--accent);background:var(--accent-d)}
+
+/* ══════════════════════════════════════════════
+   EXPENSE CARDS (liste des dépenses)
+══════════════════════════════════════════════ */
+.dep-cards { display:flex; flex-direction:column; gap:10px; }
+.dep-card {
+  background: var(--s2); border:1px solid var(--border2); border-radius:12px;
+  padding:13px 15px;
+}
+.dep-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.dep-card-date { font-size:10.5px; color:var(--muted); margin-bottom:2px; }
+.dep-card-desc { font-size:13.5px; font-weight:500; color:var(--text); margin-bottom:3px; }
+.dep-card-cat { font-size:11.5px; color:var(--accent); font-weight:500; }
+.dep-card-amount { font-size:17px; font-weight:700; color:var(--text); text-align:right; white-space:nowrap; }
+.dep-card-actions { display:flex; gap:5px; margin-top:7px; justify-content:flex-end; }
+.dep-card-items { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+.dep-card-item-chip { font-size:10.5px; background:var(--s1); border:1px solid var(--border2); color:var(--muted2); padding:3px 10px; border-radius:99px; }
+.dep-card-tags { margin-top:7px; display:flex; flex-wrap:wrap; gap:6px; }
+.dep-card-tags .tag { font-size:10.5px; }
+.dep-card-meta { font-size:10.5px; color:var(--muted); margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; }
 td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
 tbody tr{transition:background .12s}tbody tr:hover{background:rgba(79,143,255,.04)}tbody tr:last-child td{border-bottom:none}
 td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.5px}
@@ -1215,7 +1236,6 @@ select option.subcat-option {
 .dep-lignes-detail { background:var(--s0); border-top:1px dashed var(--border2); }
 .dep-lignes-detail table { width:100%; font-size:12px; }
 .dep-lignes-detail td { padding:5px 8px; color:var(--muted2); }
-.badge-nlignes { font-size:10px; background:var(--purple-d); color:var(--purple); padding:1px 6px; border-radius:99px; font-weight:600; margin-left:6px; cursor:pointer; }
 
 /* Product registry / price history */
 .produit-row { display:flex; align-items:center; justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--border); gap:8px; }
@@ -1470,18 +1490,13 @@ select option.subcat-option {
             <select id="dep-per-page" style="width:auto;padding:5px 8px;font-size:12px"><option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="9999">Tout</option></select>
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr>
-              <th class="th-sort" data-col="date">Date <span id="si-date"></span></th>
-              <th class="th-sort" data-col="categorie">Catégorie <span id="si-categorie"></span></th>
-              <th>Personne</th><th>Compte</th><th>Description</th><th>Tags</th>
-              <th class="th-sort" data-col="montant">Montant <span id="si-montant"></span></th>
-              <th></th>
-            </tr></thead>
-            <tbody id="tbody-depenses"></tbody>
-          </table>
+        <div class="table-wrap" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <span style="font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Trier par</span>
+          <button type="button" class="btn btn-sm th-sort" data-col="date">Date <span id="si-date"></span></button>
+          <button type="button" class="btn btn-sm th-sort" data-col="categorie">Catégorie <span id="si-categorie"></span></button>
+          <button type="button" class="btn btn-sm th-sort" data-col="montant">Montant <span id="si-montant"></span></button>
         </div>
+        <div class="dep-cards" id="cards-depenses"></div>
         <div class="pag-bar" id="dep-pagination-nav"></div>
         <div style="font-size:11.5px;color:var(--muted);text-align:right;margin-top:4px" id="dep-page-info"></div>
       </div>
@@ -3756,7 +3771,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ["date","montant","categorie"].forEach(col => {
       const el = byId("si-" + col);
       if (!el) return;
-      const th = el.closest("th");
+      const th = el.closest(".th-sort");
       if (_depSort.col === col) {
         el.textContent = _depSort.dir === "asc" ? "▲" : "▼";
         th.classList.add("active");
@@ -3812,7 +3827,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const allRows = sortedDepenses();
     const perPageEl = byId("dep-per-page");
     const perPage = perPageEl ? parseInt(perPageEl.value) || 50 : 50;
-    const tb = byId("tbody-depenses");
+    const tb = byId("cards-depenses");
     const summary = byId("filter-summary");
     // Totals filtered by period (not all-time)
     const now = new Date();
@@ -3856,61 +3871,47 @@ document.addEventListener("DOMContentLoaded", () => {
     const rows = allRows.slice(start, start + perPage);
 
     if (!rows.length) {
-      tb.innerHTML = `<tr><td colspan="8" class="empty">Aucune dépense pour ces filtres.</td></tr>`;
+      tb.innerHTML = `<div class="empty" style="padding:24px;text-align:center">Aucune dépense pour ces filtres.</div>`;
       return;
     }
     tb.innerHTML = rows.map((d) => {
       const tags = (d.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
       const recBadge = d.recurrent ? `<span class="badge-rec">🔁</span>` : "";
-      const nLignes = (d.lignes || []).length;
-      const lignesBadge = nLignes > 1 ? `<span class="badge-nlignes" data-toggle-lignes="${escapeHtml(d.id)}">🧾 ${nLignes} lignes</span>` : "";
       const catCell = (() => {
         const cat = state.categories.find(c => c.id === d.categorieId);
         if (cat && cat.parentId) {
           const par = state.categories.find(c => c.id === cat.parentId);
-          return par
-            ? `<span style="opacity:.65">${escapeHtml(par.nom)}</span> <span style="opacity:.5;font-size:9px">›</span> ${escapeHtml(cat.nom)}`
-            : escapeHtml(cat.nom);
+          return par ? `${escapeHtml(par.nom)} <span style="opacity:.5">›</span> ${escapeHtml(cat.nom)}` : escapeHtml(cat.nom);
         }
         return escapeHtml(nomCategorie(d.categorieId));
       })();
-      const detailRow = nLignes > 1 ? `<tr class="dep-lignes-detail hidden" id="lignes-detail-${escapeHtml(d.id)}">
-        <td colspan="8">
-          <table>
-            <thead><tr><th style="text-align:left">Catégorie</th><th style="text-align:left">Désignation</th><th>Qté</th><th>Prix unit.</th><th>Total</th></tr></thead>
-            <tbody>
-              ${d.lignes.map(l => `<tr>
-                <td>${escapeHtml(nomCategorie(l.sousCategorieId || l.categorieId))}</td>
-                <td>${escapeHtml(l.designation || "—")}</td>
-                <td class="num">${l.quantite}</td>
-                <td class="num">${formatMoney(l.prixUnitaire)}</td>
-                <td class="num">${formatMoney(l.total)}</td>
-              </tr>`).join("")}
-            </tbody>
-          </table>
-        </td>
-      </tr>` : "";
-      return `<tr>
-        <td>${escapeHtml(new Date(d.date).toLocaleDateString("fr-FR"))}</td>
-        <td><span class="badge">${catCell}</span>${lignesBadge}</td>
-        <td>${escapeHtml(nomPersonne(d.personneId))}</td>
-        <td>${escapeHtml(nomCompte(d.compteId))}</td>
-        <td>${escapeHtml(d.description || "—")}${recBadge}</td>
-        <td>${tags || "—"}</td>
-        <td class="num">${formatMoney(d.montant)}</td>
-        <td style="display:flex;gap:4px">
-          <button type="button" class="btn btn-sm btn-edit" data-edit="${escapeHtml(d.id)}">✏️</button>
-          <button type="button" class="btn btn-sm btn-danger" data-del="${escapeHtml(d.id)}">🗑️</button>
-        </td>
-      </tr>${detailRow}`;
+      const itemsHtml = (d.lignes && d.lignes.length)
+        ? `<div class="dep-card-items">${d.lignes.map(l => `<span class="dep-card-item-chip">${l.quantite}× ${escapeHtml(l.designation || nomCategorie(l.sousCategorieId || l.categorieId))}</span>`).join("")}</div>`
+        : "";
+      const tagsHtml = tags ? `<div class="dep-card-tags">${tags}</div>` : "";
+      return `<div class="dep-card">
+        <div class="dep-card-top">
+          <div style="min-width:0">
+            <div class="dep-card-date">${escapeHtml(new Date(d.date).toLocaleDateString("fr-FR", {day:"2-digit",month:"short",year:"numeric"}))}</div>
+            <div class="dep-card-desc">${escapeHtml(d.description || "Dépense")}${recBadge}</div>
+            <div class="dep-card-cat">${catCell}</div>
+          </div>
+          <div>
+            <div class="dep-card-amount">${formatMoney(d.montant)}</div>
+            <div class="dep-card-actions">
+              <button type="button" class="btn btn-sm btn-edit" data-edit="${escapeHtml(d.id)}" aria-label="Modifier">✏️</button>
+              <button type="button" class="btn btn-sm btn-danger" data-del="${escapeHtml(d.id)}" aria-label="Supprimer">🗑️</button>
+            </div>
+          </div>
+        </div>
+        ${itemsHtml}
+        ${tagsHtml}
+        <div class="dep-card-meta">
+          <span>👤 ${escapeHtml(nomPersonne(d.personneId))}</span>
+          <span>💳 ${escapeHtml(nomCompte(d.compteId))}</span>
+        </div>
+      </div>`;
     }).join("");
-
-    tb.querySelectorAll("[data-toggle-lignes]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const row = byId("lignes-detail-" + btn.getAttribute("data-toggle-lignes"));
-        if (row) row.classList.toggle("hidden");
-      });
-    });
 
     tb.querySelectorAll("[data-del]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -5242,7 +5243,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ── EDIT DEPENSE MODAL (catégorie unique + articles) ─────────────────────
+  // ── EDIT DEPENSE MODAL (catégorie + sous-catégorie uniques + articles) ───
   let _editDepId = null;
   function openEditDepense(id) {
     const d = state.depenses.find(x => x.id === id);
@@ -5262,28 +5263,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // un article unique à partir de l'ancien montant/catégorie pour permettre
     // leur édition/itemisation.
     const srcLignes = d.lignes && d.lignes.length ? d.lignes : null;
-    const firstCat = srcLignes ? (srcLignes[0].categorieId || srcLignes[0].sousCategorieId) : d.categorieId;
-    const firstCatObj = state.categories.find(c => c.id === firstCat);
+    const firstLeaf = srcLignes ? (srcLignes[0].sousCategorieId || srcLignes[0].categorieId) : d.categorieId;
+    const firstCatObj = state.categories.find(c => c.id === firstLeaf);
     const rootId = firstCatObj ? (firstCatObj.parentId || firstCatObj.id) : "";
+    const subId = firstCatObj && firstCatObj.parentId ? firstCatObj.id : "";
     editCatPicker.setSelectedCatId(rootId);
+    editCatPicker.setSelectedSubId(subId);
     let initial = srcLignes
-      ? srcLignes.map(l => ({ sousCategorieId: (state.categories.find(c => c.id === (l.sousCategorieId || l.categorieId)) || {}).parentId ? (l.sousCategorieId || l.categorieId) : "", designation: l.designation, quantite: l.quantite, prixUnitaire: l.prixUnitaire }))
-      : [{
-          sousCategorieId: firstCatObj && firstCatObj.parentId ? firstCatObj.id : "",
-          designation: d.description || "",
-          quantite: 1,
-          prixUnitaire: d.montant || 0,
-        }];
+      ? srcLignes.map(l => ({ designation: l.designation, quantite: l.quantite, prixUnitaire: l.prixUnitaire }))
+      : [{ designation: d.description || "", quantite: 1, prixUnitaire: d.montant || 0 }];
     editLignesEditor.reset(initial);
     byId("modal-edit-depense").classList.remove("hidden");
   }
 
   const editCatPicker = createCatPicker({ pickerId: "edit-catpicker" });
-  const editLignesEditor = createLignesEditor({ wrapId: "edit-lignes-wrap", totalId: "edit-lignes-total", getCatId: () => editCatPicker.getSelectedCatId() });
-  editCatPicker.onChange = (rootId, pickedId) => {
-    editLignesEditor.render();
-    if (pickedId && pickedId !== rootId) editLignesEditor.setFirstRowSubcat(pickedId);
-  };
+  const editLignesEditor = createLignesEditor({ wrapId: "edit-lignes-wrap", totalId: "edit-lignes-total", getCatId: () => editCatPicker.getSelectedCatId(), getSubId: () => editCatPicker.getSelectedSubId() });
+  editCatPicker.onChange = () => editLignesEditor.render();
   byId("btn-edit-add-ligne")?.addEventListener("click", () => editLignesEditor.addRow());
 
   byId("btn-edit-save")?.addEventListener("click", () => {
@@ -5346,11 +5341,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // catégories, elles, se choisissent article par article via des chips.
   function createCatPicker(opts) {
     let selectedId = opts.initialCatId || "";
+    let selectedSubId = "";
     let searchQuery = "";
     const api = {
       render,
       getSelectedCatId: () => selectedId,
-      setSelectedCatId: (id) => { selectedId = id || ""; searchQuery = ""; render(); },
+      getSelectedSubId: () => selectedSubId,
+      setSelectedCatId: (id) => { selectedId = id || ""; selectedSubId = ""; searchQuery = ""; render(); },
+      setSelectedSubId: (id) => { selectedSubId = id || ""; render(); },
       onChange: opts.onChange || null,
     };
 
@@ -5366,11 +5364,26 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!wrap) return;
       if (selectedId) {
         const cat = state.categories.find(c => c.id === selectedId);
+        const subs = getSubCats(selectedId);
+        const subChipsHtml = subs.length ? `<div style="margin-top:10px">
+          <div class="catpicker-row-label">Sous-catégorie</div>
+          <div class="catpicker-chips">${subs.map(s =>
+            `<span class="catchip subchip ${s.id === selectedSubId ? "selected" : ""}" data-subpick="${escapeHtml(s.id)}">${escapeHtml(s.nom)}</span>`
+          ).join("")}</div>
+        </div>` : "";
         wrap.innerHTML = `<div class="catpicker-selected">
           <span>🏷️ ${escapeHtml(cat ? cat.nom : "—")}</span>
           <span class="change-link" data-change="1">Changer</span>
-        </div>`;
-        wrap.querySelector("[data-change]")?.addEventListener("click", () => { selectedId = ""; render(); });
+        </div>
+        ${subChipsHtml}`;
+        wrap.querySelector("[data-change]")?.addEventListener("click", () => { selectedId = ""; selectedSubId = ""; render(); });
+        wrap.querySelectorAll("[data-subpick]").forEach(chip => {
+          chip.addEventListener("click", () => {
+            selectedSubId = chip.getAttribute("data-subpick");
+            render();
+            if (api.onChange) api.onChange(selectedId, selectedSubId);
+          });
+        });
         return;
       }
       const favs = getFavCats();
@@ -5428,13 +5441,24 @@ document.addEventListener("DOMContentLoaded", () => {
       input.addEventListener("blur", () => setTimeout(() => sugg.classList.remove("show"), 150));
     }
 
+    // Sélectionne une catégorie (racine ou sous-catégorie). Si on choisit
+    // directement une sous-catégorie via la recherche, sa racine est
+    // sélectionnée et la sous-catégorie est déjà cochée — visible d'un coup.
     function select(id) {
       const cat = state.categories.find(c => c.id === id);
-      const rootId = cat && cat.parentId ? cat.parentId : id;
-      selectedId = rootId;
+      const isSub = cat && cat.parentId;
+      selectedId = isSub ? cat.parentId : id;
+      selectedSubId = isSub ? id : "";
+      // Si la catégorie choisie a des sous-catégories et qu'aucune n'est
+      // encore sélectionnée, on en pré-sélectionne une pour que tout soit
+      // visible dès le départ (l'utilisateur peut la changer en un clic).
+      if (!selectedSubId) {
+        const subs = getSubCats(selectedId);
+        if (subs.length) selectedSubId = subs[0].id;
+      }
       searchQuery = "";
       render();
-      if (api.onChange) api.onChange(rootId, id);
+      if (api.onChange) api.onChange(selectedId, selectedSubId);
     }
 
     render();
@@ -5447,18 +5471,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // quantité et prix unitaire. Le total général = somme des totaux d'article,
   // recalculé en temps réel.
   function createLignesEditor(opts) {
-    function emptyLigne() { return { _rid: uid(), sousCategorieId: "", designation: "", quantite: "", prixUnitaire: "" }; }
+    function emptyLigne() { return { _rid: uid(), designation: "", quantite: "", prixUnitaire: "" }; }
     let lignes = (opts.initialLignes && opts.initialLignes.length)
       ? opts.initialLignes.map(l => ({ ...l, _rid: uid() }))
       : [emptyLigne()];
 
     function catId() { return (opts.getCatId && opts.getCatId()) || ""; }
-    function effectiveCatId(l) { return l.sousCategorieId || catId(); }
+    // La sous-catégorie est choisie une seule fois dans le sélecteur en tête
+    // de formulaire (cf. createCatPicker) : tous les articles en héritent.
+    function effectiveCatId() { return (opts.getSubId && opts.getSubId()) || catId(); }
     function lineTotal(l) { return (Number(l.quantite) || 0) * (Number(l.prixUnitaire) || 0); }
     function total() { return lignes.reduce((s, l) => s + lineTotal(l), 0); }
 
     function findExistingProduit(l) {
-      const cId = effectiveCatId(l);
+      const cId = effectiveCatId();
       if (!l.designation || !cId) return null;
       return (state.produits || []).find(p => p.categorieId === cId && normNom(p.nom) === normNom(l.designation)) || null;
     }
@@ -5480,13 +5506,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function rowHtml(l) {
-      const cId = catId();
-      const subs = cId ? getSubCats(cId) : [];
-      const produits = getProduitsForCat(effectiveCatId(l));
+      const produits = getProduitsForCat(effectiveCatId());
       const dlId = `dl_${l._rid}`;
-      const subchips = subs.length ? `<div class="ligne-subchips">${subs.map(s =>
-        `<span class="catchip subchip ${s.id === l.sousCategorieId ? "selected" : ""}" data-subpick="${escapeHtml(s.id)}" data-rid="${l._rid}">${escapeHtml(s.nom)}</span>`
-      ).join("")}</div>` : "";
       return `<div class="ligne-row" data-rid="${l._rid}">
         <div class="ligne-row-main">
           <input type="text" data-f="designation" list="${dlId}" value="${escapeHtml(l.designation || "")}" placeholder="Produit ou poste" autocomplete="off"/>
@@ -5497,7 +5518,6 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="ligne-total">${formatMoney(lineTotal(l))}</span>
           <button type="button" class="ligne-del" data-del="${l._rid}" title="Supprimer" aria-label="Supprimer l'article">✕</button>
         </div>
-        ${subchips}
         ${buildPriceHint(l)}
       </div>`;
     }
@@ -5544,12 +5564,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           });
         });
-        rowEl.querySelectorAll("[data-subpick]").forEach(chip => {
-          chip.addEventListener("click", () => {
-            l.sousCategorieId = (l.sousCategorieId === chip.getAttribute("data-subpick")) ? "" : chip.getAttribute("data-subpick");
-            render();
-          });
-        });
         rowEl.querySelector("[data-del]")?.addEventListener("click", () => {
           lignes = lignes.filter(x => x._rid !== rid);
           if (!lignes.length) lignes.push(emptyLigne());
@@ -5571,17 +5585,16 @@ document.addEventListener("DOMContentLoaded", () => {
       lignes = (initial && initial.length) ? initial.map(l => ({ ...l, _rid: uid() })) : [emptyLigne()];
       render();
     }
-    function setFirstRowSubcat(subId) {
-      if (lignes[0]) { lignes[0].sousCategorieId = subId; render(); }
-    }
     // Construit les articles finaux prêts à être enregistrés (crée/relie les produits).
+    // La catégorie/sous-catégorie de chaque article = celle choisie une fois
+    // dans le sélecteur en tête de formulaire (identique pour tous les articles).
     function getLignes() {
       const cId = catId();
+      const leafId = effectiveCatId();
       if (!cId) return [];
       return lignes
         .filter(l => (Number(l.quantite) || 0) > 0 && (Number(l.prixUnitaire) || 0) >= 0)
         .map(l => {
-          const leafId = l.sousCategorieId || cId;
           const qte = Number(l.quantite) || 0;
           const prix = Number(l.prixUnitaire) || 0;
           let produitId = null;
@@ -5592,7 +5605,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return {
             id: l.id || uid(),
             categorieId: cId,
-            sousCategorieId: l.sousCategorieId || "",
+            sousCategorieId: (leafId !== cId) ? leafId : "",
             produitId,
             designation: (l.designation || "").trim(),
             quantite: qte,
@@ -5605,15 +5618,12 @@ document.addEventListener("DOMContentLoaded", () => {
     function isEmpty() { return getLignes().length === 0; }
 
     render();
-    return { addRow, reset, getLignes, getTotal, isEmpty, render, setFirstRowSubcat };
+    return { addRow, reset, getLignes, getTotal, isEmpty, render };
   }
 
   const addCatPicker = createCatPicker({ pickerId: "add-catpicker" });
-  const addLignesEditor = createLignesEditor({ wrapId: "add-lignes-wrap", totalId: "add-lignes-total", getCatId: () => addCatPicker.getSelectedCatId() });
-  addCatPicker.onChange = (rootId, pickedId) => {
-    addLignesEditor.render();
-    if (pickedId && pickedId !== rootId) addLignesEditor.setFirstRowSubcat(pickedId);
-  };
+  const addLignesEditor = createLignesEditor({ wrapId: "add-lignes-wrap", totalId: "add-lignes-total", getCatId: () => addCatPicker.getSelectedCatId(), getSubId: () => addCatPicker.getSelectedSubId() });
+  addCatPicker.onChange = () => addLignesEditor.render();
   byId("btn-add-ligne")?.addEventListener("click", () => addLignesEditor.addRow());
 
   // ── SUBMIT : Nouvelle dépense ─────────────────────────────────────────────
